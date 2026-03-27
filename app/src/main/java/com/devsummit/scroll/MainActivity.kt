@@ -12,6 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import android.net.Uri
+import android.provider.Settings
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.view.accessibility.AccessibilityManager
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
@@ -44,6 +47,11 @@ class MainActivity : ComponentActivity() {
         if (!UsageEngine.hasUsageStatsPermission(this)) {
             val usageIntent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             startActivity(usageIntent)
+        }
+
+        if (!isAccessibilityServiceEnabled()) {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
         }
 
         setContent {
@@ -95,5 +103,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        for (enabledService in enabledServices) {
+            val serviceInfo = enabledService.resolveInfo.serviceInfo
+            if (serviceInfo.packageName == packageName && serviceInfo.name == com.devsummit.scroll.service.UnscrollAccessibilityService::class.java.name) {
+                return true
+            }
+        }
+        return false
     }
 }

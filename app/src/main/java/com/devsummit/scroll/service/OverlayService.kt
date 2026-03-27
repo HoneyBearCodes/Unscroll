@@ -28,6 +28,13 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Button
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
@@ -37,6 +44,15 @@ import com.devsummit.scroll.ui.theme.UnscrollTheme
 import com.devsummit.scroll.ui.theme.BlackOverlay
 
 class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
+
+    enum class SnoozeOption(val title: String, val minutes: Long) {
+        FIVE_MINS("5 Minutes", 5),
+        TEN_MINS("10 Minutes", 10),
+        FIFTEEN_MINS("15 Minutes", 15),
+        THIRTY_MINS("30 Minutes", 30),
+        ONE_HOUR("1 Hour", 60),
+        RUIN_MY_LIFE("Ruin My Life (No Snooze)", 24 * 60) // Basically today is ruined
+    }
 
     private lateinit var windowManager: WindowManager
     private var composeView: ComposeView? = null
@@ -88,11 +104,39 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                             text = "In the time you spent scrolling yesterday, you could have finished reading a book.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.LightGray,
-                            modifier = Modifier.padding(bottom = 32.dp)
+                            modifier = Modifier.padding(bottom = 24.dp)
                         )
+
+                        var expanded by remember { mutableStateOf(false) }
+                        var selectedSnooze by remember { mutableStateOf(SnoozeOption.FIFTEEN_MINS) }
+
+                        Box(modifier = Modifier.padding(bottom = 32.dp)) {
+                            Button(onClick = { expanded = true }) {
+                                Text("Snooze: ${selectedSnooze.title}")
+                            }
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                SnoozeOption.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.title) },
+                                        onClick = {
+                                            selectedSnooze = option
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                         
                         HoldToConfirmButton(
-                            onConfirm = { removeOverlay() }
+                            onConfirm = {
+                                val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                                val snoozeEnd = System.currentTimeMillis() + (selectedSnooze.minutes * 60 * 1000)
+                                prefs.edit().putLong("global_snooze_until", snoozeEnd).apply()
+                                removeOverlay()
+                            }
                         )
                     }
                 }
