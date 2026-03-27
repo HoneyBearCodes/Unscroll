@@ -17,7 +17,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityManager
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import com.devsummit.scroll.core.db.AppDatabase
 import com.devsummit.scroll.core.db.UsageRepository
@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
                                 onClick = { currentTab = "dashboard" }
                             )
                             NavigationBarItem(
-                                icon = { Icon(Icons.Default.List, contentDescription = "Apps") },
+                                icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Apps") },
                                 label = { Text("Blocked Apps") },
                                 selected = currentTab == "apps",
                                 onClick = { currentTab = "apps" }
