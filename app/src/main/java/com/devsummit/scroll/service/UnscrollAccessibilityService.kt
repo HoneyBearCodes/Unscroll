@@ -3,69 +3,73 @@ package com.devsummit.scroll.service
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.devsummit.scroll.core.db.AppDatabase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 class UnscrollAccessibilityService : AccessibilityService() {
 
-    private val job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.Main + job)
-    
-    private var blacklistedApps: Set<String> = emptySet()
     private var currentForegroundPackage: String? = null
-    private var checkTimerJob: Job? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var scheduledTriggerRunnable: Runnable? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        val dao = AppDatabase.getDatabase(this).blacklistedAppDao()
-        scope.launch(Dispatchers.IO) {
-            dao.getAllBlacklistedAppsFlow().collect { apps ->
-                blacklistedApps = apps.toSet()
-            }
-        }
+        Log.d("Unscroll", "Accessibility Service actively connected cleanly.")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        try {
+            if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
-        val packageName = event.packageName?.toString() ?: return
-        currentForegroundPackage = packageName
+            val packageName = event.packageName?.toString() ?: return
+            currentForegroundPackage = packageName
 
-        if (blacklistedApps.contains(packageName)) {
-            val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-            val snoozeUntil = prefs.getLong("global_snooze_until", 0L)
-            val now = System.currentTimeMillis()
-            
-            if (now > snoozeUntil) {
-                try {
-                    startService(Intent(this, OverlayService::class.java))
-                } catch(e: Exception) {
-                    e.printStackTrace()
-                }
-            } else {
-                checkTimerJob?.cancel()
-                val delayMs = snoozeUntil - now
-                if (delayMs > 0) {
-                    checkTimerJob = scope.launch {
-                        delay(delayMs + 1000)
-                        if (currentForegroundPackage != null && blacklistedApps.contains(currentForegroundPackage)) {
-                            try {
-                                startService(Intent(this@UnscrollAccessibilityService, OverlayService::class.java))
-                            } catch(e: Exception) {
-                                e.printStackTrace()
-                            }
+            // Because we enabled allowMainThreadQueries(), this synchronous DB hit is perfectly safe and lightning fast
+            // for our tiny table. It completely eliminates Flow/Coroutine process crashes!
+            val dao = AppDatabase.getDatabase(this).blacklistedAppDao()
+            val blacklistedApps = dao.getAllBlacklistedAppsSync()
+
+            // Cancel any old trap
+            scheduledTriggerRunnable?.let { handler.removeCallbacks(it) }
+
+            if (blacklistedApps.contains(packageName)) {
+                checkOverlayTrigger(blacklistedApps)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun checkOverlayTrigger(blacklistedApps: List<String>) {
+        val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+        val snoozeUntil = prefs.getLong("global_snooze_until", 0L)
+        val now = System.currentTimeMillis()
+        
+        if (now > snoozeUntil) {
+            try {
+                startService(Intent(this, OverlayService::class.java))
+            } catch(e: Exception) {
+                e.printStackTrace()
+            }
+        } else {
+            val delayMs = snoozeUntil - now
+            if (delayMs > 0) {
+                val runnable = Runnable {
+                    val currentPkg = currentForegroundPackage
+                    if (currentPkg != null && blacklistedApps.contains(currentPkg)) {
+                        try {
+                            startService(Intent(this@UnscrollAccessibilityService, OverlayService::class.java))
+                        } catch(e: Exception) {
+                            e.printStackTrace()
                         }
                     }
                 }
+                scheduledTriggerRunnable = runnable
+                handler.postDelayed(runnable, delayMs + 1000)
             }
-        } else {
-            checkTimerJob?.cancel()
         }
     }
 
@@ -73,6 +77,6 @@ class UnscrollAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        job.cancel()
+        scheduledTriggerRunnable?.let { handler.removeCallbacks(it) }
     }
 }

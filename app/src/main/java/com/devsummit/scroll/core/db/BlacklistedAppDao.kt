@@ -20,4 +20,7 @@ interface BlacklistedAppDao {
 
     @Query("SELECT packageName FROM blacklisted_apps")
     suspend fun getAllBlacklistedApps(): List<String>
+
+    @Query("SELECT packageName FROM blacklisted_apps")
+    fun getAllBlacklistedAppsSync(): List<String>
 }
