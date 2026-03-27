@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DailyUsageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertUsage(usage: DailyUsage)
+    suspend fun insertUsage(usage: DailyUsage): Unit
 
     @Query("SELECT * FROM daily_usage WHERE date = :date")
     suspend fun getUsageForDate(date: Long): List<DailyUsage>

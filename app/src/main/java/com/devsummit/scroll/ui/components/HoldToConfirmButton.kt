@@ -1,6 +1,8 @@
 package com.devsummit.scroll.ui.components
 
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -34,6 +36,7 @@ fun HoldToConfirmButton(
 
     val progressRatio by animateFloatAsState(
         targetValue = progressMs.toFloat() / durationMs.toFloat(),
+        animationSpec = tween(durationMillis = 50, easing = LinearEasing),
         label = "progressRatio"
     )
 

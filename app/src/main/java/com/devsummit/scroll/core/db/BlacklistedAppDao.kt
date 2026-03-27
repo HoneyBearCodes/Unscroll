@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BlacklistedAppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertApp(app: BlacklistedApp)
+    suspend fun insertApp(app: BlacklistedApp): Unit
 
     @Delete
-    suspend fun removeApp(app: BlacklistedApp)
+    suspend fun removeApp(app: BlacklistedApp): Unit
 
     @Query("SELECT packageName FROM blacklisted_apps")
     fun getAllBlacklistedAppsFlow(): Flow<List<String>>

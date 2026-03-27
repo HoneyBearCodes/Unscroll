@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
@@ -91,7 +93,7 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                     ) {
                         Text(
                             text = "Reality Check",
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                             color = Color.White
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -99,7 +101,8 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                             text = "In the time you spent scrolling yesterday, you could have finished reading a book.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.LightGray,
-                            modifier = Modifier.padding(bottom = 24.dp)
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
                         )
 
                         var expanded by remember { mutableStateOf(false) }
@@ -151,6 +154,7 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
             layoutFlag,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or 
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         )
