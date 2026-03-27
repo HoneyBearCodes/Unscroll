@@ -26,12 +26,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
-import androidx.lifecycle.ViewTreeLifecycleOwner
-import androidx.lifecycle.ViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
-import androidx.savedstate.ViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.devsummit.scroll.ui.components.HoldToConfirmButton
 import com.devsummit.scroll.ui.theme.UnscrollTheme
 import com.devsummit.scroll.ui.theme.BlackOverlay
@@ -64,9 +64,9 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
         if (composeView != null) return
 
         composeView = ComposeView(this).apply {
-            ViewTreeLifecycleOwner.set(this, this@OverlayService)
-            ViewTreeViewModelStoreOwner.set(this, this@OverlayService)
-            ViewTreeSavedStateRegistryOwner.set(this, this@OverlayService)
+            setViewTreeLifecycleOwner(this@OverlayService)
+            setViewTreeViewModelStoreOwner(this@OverlayService)
+            setViewTreeSavedStateRegistryOwner(this@OverlayService)
 
             setContent {
                 UnscrollTheme {
