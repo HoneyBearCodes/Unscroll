@@ -11,6 +11,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.devsummit.scroll.service.OverlayService
+import com.devsummit.scroll.ui.dashboard.DashboardScreen
 import com.devsummit.scroll.ui.theme.UnscrollTheme
 
 class MainActivity : ComponentActivity() {
@@ -31,8 +33,11 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Placeholder until DashboardScreen is implemented
-                    Text("Dashboard Placeholder")
+                    DashboardScreen(
+                        onTestOverlayClick = {
+                            startService(Intent(this@MainActivity, OverlayService::class.java))
+                        }
+                    )
                 }
             }
         }

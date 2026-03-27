@@ -18,7 +18,7 @@ import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(onTestOverlayClick: () -> Unit = {}) {
     val mockTimeSpentMs = 7200000L // Mocking 2 hours
     val achievements = remember { RealityCheckUtility.getAchievements(mockTimeSpentMs) }
 
@@ -32,6 +32,13 @@ fun DashboardScreen() {
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        Button(
+            onClick = onTestOverlayClick,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        ) {
+            Text("Preview Friction Overlay")
+        }
 
         Card(
             modifier = Modifier
