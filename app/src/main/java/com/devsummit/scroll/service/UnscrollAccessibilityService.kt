@@ -12,12 +12,16 @@ import com.devsummit.scroll.core.db.AppDatabase
 class UnscrollAccessibilityService : AccessibilityService() {
 
     private var currentForegroundPackage: String? = null
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
     private var scheduledTriggerRunnable: Runnable? = null
 
     override fun onServiceConnected() {
-        super.onServiceConnected()
-        Log.d("Unscroll", "Accessibility Service actively connected cleanly.")
+        try {
+            super.onServiceConnected()
+            Log.d("Unscroll", "Accessibility Service actively connected cleanly.")
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
