@@ -11,6 +11,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import android.net.Uri
+import com.devsummit.scroll.core.usage.UsageEngine
 import com.devsummit.scroll.service.OverlayService
 import com.devsummit.scroll.ui.dashboard.DashboardScreen
 import com.devsummit.scroll.ui.theme.UnscrollTheme
@@ -20,12 +22,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             startActivity(intent)
         }
         
-        val usageIntent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-        startActivity(usageIntent)
+        if (!UsageEngine.hasUsageStatsPermission(this)) {
+            val usageIntent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            startActivity(usageIntent)
+        }
 
         setContent {
             UnscrollTheme {
