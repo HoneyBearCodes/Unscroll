@@ -12,12 +12,13 @@ object RealityCheckUtility {
         val minutes = milliseconds / (1000 * 60)
         val hours = minutes / 60.0
 
-        val chapters = minutes / 30.0
-        val calories = hours * 500.0
-
         return listOf(
-            Achievement("Reading", chapters, "Book Chapters"),
-            Achievement("Exercise", calories, "Calories Burned")
+            Achievement("Reading", (minutes / 30.0), "Book Chapters"),
+            Achievement("Exercise", (hours * 500.0), "Calories Burned"),
+            Achievement("Language", (minutes / 15.0), "Languages Lessons"),
+            Achievement("Walking", (minutes / 20.0), "Miles Walked"),
+            Achievement("Learning", (minutes / 1.5), "Pages Read"),
+            Achievement("Entertainment", (hours / 2.0), "Movies Watched")
         )
     }
 
