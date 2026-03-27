@@ -59,6 +59,12 @@ class MainActivity : ComponentActivity() {
             val blacklistedApps by repository.allBlacklistedApps.collectAsState(initial = emptyList())
             var currentTab by remember { mutableStateOf("dashboard") }
 
+            // Sync blacklisted apps to SharedPreferences for the AccessibilityService
+            LaunchedEffect(blacklistedApps) {
+                val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putStringSet("blacklisted_packages_cache", blacklistedApps.toSet()).apply()
+            }
+
             UnscrollTheme {
                 Scaffold(
                     bottomBar = {
