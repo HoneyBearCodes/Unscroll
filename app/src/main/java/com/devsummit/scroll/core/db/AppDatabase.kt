@@ -22,7 +22,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "unscroll_database"
                 )
                 .fallbackToDestructiveMigration()
-                .allowMainThreadQueries()
                 .build()
                 INSTANCE = instance
                 instance
