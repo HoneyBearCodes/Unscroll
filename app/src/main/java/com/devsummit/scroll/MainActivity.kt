@@ -8,19 +8,34 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import android.net.Uri
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Home
+import com.devsummit.scroll.core.db.AppDatabase
+import com.devsummit.scroll.core.db.UsageRepository
 import com.devsummit.scroll.core.usage.UsageEngine
 import com.devsummit.scroll.service.OverlayService
 import com.devsummit.scroll.ui.dashboard.DashboardScreen
+import com.devsummit.scroll.ui.settings.AppSelectorScreen
 import com.devsummit.scroll.ui.theme.UnscrollTheme
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var repository: UsageRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        repository = UsageRepository(
+            AppDatabase.getDatabase(this).dailyUsageDao(),
+            AppDatabase.getDatabase(this).blacklistedAppDao()
+        )
+        // ... (permissions kept intact)
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
             startActivity(intent)
@@ -32,16 +47,51 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val scope = rememberCoroutineScope()
+            val blacklistedApps by repository.allBlacklistedApps.collectAsState(initial = emptyList())
+            var currentTab by remember { mutableStateOf("dashboard") }
+
             UnscrollTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    DashboardScreen(
-                        onTestOverlayClick = {
-                            startService(Intent(this@MainActivity, OverlayService::class.java))
+                Scaffold(
+                    bottomBar = {
+                        NavigationBar {
+                            NavigationBarItem(
+                                icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                                label = { Text("Dashboard") },
+                                selected = currentTab == "dashboard",
+                                onClick = { currentTab = "dashboard" }
+                            )
+                            NavigationBarItem(
+                                icon = { Icon(Icons.Default.List, contentDescription = "Apps") },
+                                label = { Text("Blocked Apps") },
+                                selected = currentTab == "apps",
+                                onClick = { currentTab = "apps" }
+                            )
                         }
-                    )
+                    }
+                ) { innerPadding ->
+                    Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                        if (currentTab == "dashboard") {
+                            DashboardScreen(
+                                onTestOverlayClick = {
+                                    startService(Intent(this@MainActivity, OverlayService::class.java))
+                                }
+                            )
+                        } else {
+                            AppSelectorScreen(
+                                blacklistedPackages = blacklistedApps.toSet(),
+                                onToggleApp = { appPackage, isBlacklisted ->
+                                    scope.launch {
+                                        if (isBlacklisted) {
+                                            repository.addBlacklistedApp(appPackage)
+                                        } else {
+                                            repository.removeBlacklistedApp(appPackage)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
