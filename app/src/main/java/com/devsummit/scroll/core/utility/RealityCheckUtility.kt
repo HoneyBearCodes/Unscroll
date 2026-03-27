@@ -16,7 +16,7 @@ object RealityCheckUtility {
             Achievement("Reading", (minutes / 30.0), "Book Chapters"),
             Achievement("Exercise", (hours * 500.0), "Calories Burned"),
             Achievement("Language", (minutes / 15.0), "Languages Lessons"),
-            Achievement("Walking", (minutes / 20.0), "Miles Walked"),
+            Achievement("Walking", (minutes / 12.0), "Kilometers Walked"),
             Achievement("Learning", (minutes / 45.0), "Podcast Episodes"),
             Achievement("Entertainment", (hours / 2.0), "Movies Watched")
         )
