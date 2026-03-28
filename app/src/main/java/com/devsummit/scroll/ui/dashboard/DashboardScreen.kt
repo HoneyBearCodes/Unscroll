@@ -1,9 +1,8 @@
 package com.devsummit.scroll.ui.dashboard
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -55,6 +54,7 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Text(
@@ -121,13 +121,19 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(achievements) { achievement ->
-                AchievementCard(achievement)
+        achievements.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                row.forEach { achievement ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        AchievementCard(achievement)
+                    }
+                }
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
