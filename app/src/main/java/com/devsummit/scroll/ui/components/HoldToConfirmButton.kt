@@ -85,7 +85,7 @@ fun HoldToConfirmButton(
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             val textColor = if (progressRatio > 0.5f) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
             Text(
-                text = if (isPressed) "Keep holding..." else "Hold 5s to Proceed",
+                text = if (isPressed) "Keep holding..." else "Hold ${durationMs / 1000}s to Proceed",
                 color = textColor,
                 style = MaterialTheme.typography.labelLarge
             )

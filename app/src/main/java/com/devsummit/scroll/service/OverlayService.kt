@@ -28,6 +28,7 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Button
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -93,14 +94,37 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        var expanded by remember { mutableStateOf(false) }
+
+                        // State fields for gamification
+                        var isOverLimit by remember { mutableStateOf(false) }
+                        var holdDurationMs by remember { mutableStateOf(5000L) }
+                        
+                        LaunchedEffect(Unit) {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                                val blockedAppsStr = prefs.getString("blacklisted_packages_cache", "") ?: ""
+                                val apps = if (blockedAppsStr.isEmpty()) emptySet() else blockedAppsStr.split(",").toSet()
+                                val goalMs = prefs.getLong("daily_goal_ms", 60L * 60 * 1000)
+                                
+                                val engine = com.devsummit.scroll.core.usage.UsageEngine(this@OverlayService)
+                                val todayUsage = engine.getTodayUsageInMilliseconds(apps)
+                                
+                                if (todayUsage >= goalMs) {
+                                    isOverLimit = true
+                                    holdDurationMs = 10000L
+                                }
+                            }
+                        }
+
                         Text(
-                            text = "Reality Check",
+                            text = if (isOverLimit) "LIMIT EXCEEDED" else "Reality Check",
                             style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
+                            color = if (isOverLimit) Color.Red else Color.White
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "In the time you spent scrolling yesterday, you could have finished reading a book.",
+                            text = if (isOverLimit) "You have exhausted your daily blocklist allowance. Unscroll is fully active." else "In the time you spent scrolling yesterday, you could have finished reading a book.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.LightGray,
                             textAlign = TextAlign.Center,
@@ -120,13 +144,14 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                             ) 
                         }
 
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(bottom = 32.dp)
-                        ) {
-                            Button(onClick = { expanded = !expanded }) {
-                                Text("Snooze: ${selectedSnooze.title}")
-                            }
+                        if (!isOverLimit) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(bottom = 32.dp)
+                            ) {
+                                Button(onClick = { expanded = !expanded }) {
+                                    Text("Snooze: ${selectedSnooze.title}")
+                                }
                             if (expanded) {
                                 Column(
                                     modifier = Modifier
@@ -147,11 +172,20 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                                     }
                                 }
                             }
+                        } else {
+                            Text(
+                                text = "Emergency Snooze (2.5 mins)",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                modifier = Modifier.padding(bottom = 32.dp)
+                            )
                         }
                         
                         HoldToConfirmButton(
+                            durationMs = holdDurationMs,
                             onConfirm = {
-                                val snoozeEnd = System.currentTimeMillis() + (selectedSnooze.minutes * 60 * 1000)
+                                val selectedMs = if (isOverLimit) (2.5 * 60 * 1000).toLong() else (selectedSnooze.minutes * 60 * 1000)
+                                val snoozeEnd = System.currentTimeMillis() + selectedMs
                                 prefs.edit()
                                     .putLong("global_snooze_until", snoozeEnd)
                                     .putString("last_snooze_selection", selectedSnooze.name)

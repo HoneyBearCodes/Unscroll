@@ -22,12 +22,14 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import com.devsummit.scroll.core.db.AppDatabase
 import com.devsummit.scroll.core.db.UsageRepository
 import com.devsummit.scroll.core.usage.UsageEngine
 import com.devsummit.scroll.service.OverlayService
 import com.devsummit.scroll.ui.dashboard.DashboardScreen
 import com.devsummit.scroll.ui.settings.AppSelectorScreen
+import com.devsummit.scroll.ui.settings.SettingsScreen
 import com.devsummit.scroll.ui.theme.UnscrollTheme
 
 class MainActivity : ComponentActivity() {
@@ -107,6 +109,12 @@ class MainActivity : ComponentActivity() {
                                 selected = currentTab == "apps",
                                 onClick = { currentTab = "apps" }
                             )
+                            NavigationBarItem(
+                                icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                                label = { Text("Settings") },
+                                selected = currentTab == "settings",
+                                onClick = { currentTab = "settings" }
+                            )
                         }
                     }
                 ) { innerPadding ->
@@ -118,7 +126,7 @@ class MainActivity : ComponentActivity() {
                                     startService(Intent(this@MainActivity, OverlayService::class.java))
                                 }
                             )
-                        } else {
+                        } else if (currentTab == "apps") {
                             AppSelectorScreen(
                                 blacklistedPackages = blacklistedApps.toSet(),
                                 onToggleApp = { appPackage, isBlacklisted ->
@@ -131,6 +139,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             )
+                        } else {
+                            SettingsScreen()
                         }
                     }
                         

@@ -71,6 +71,51 @@ class UsageEngine(private val context: Context) {
         }
         return weeklyData
     }
+
+    fun calculateCurrentStreak(blacklistedPackages: Set<String>, dailyGoalMs: Long): Int {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        val installTime = packageInfo.firstInstallTime
+        
+        var streak = 0
+        
+        for (i in 0..30) {
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_YEAR, -i)
+            
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startTime = calendar.timeInMillis
+            
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val endTime = calendar.timeInMillis
+            
+            if (endTime < installTime) {
+                break 
+            }
+            
+            val queryEnd = if (i == 0) System.currentTimeMillis() else endTime
+            val usageStats = usageStatsManager.queryAndAggregateUsageStats(startTime, queryEnd)
+            
+            var totalTimeMs = 0L
+            for ((packageName, stats) in usageStats) {
+                if (blacklistedPackages.contains(packageName)) {
+                    totalTimeMs += stats.totalTimeInForeground
+                }
+            }
+            
+            if (totalTimeMs <= dailyGoalMs) {
+                streak++
+            } else {
+                break
+            }
+        }
+        return streak
+    }
     companion object {
         fun hasUsageStatsPermission(context: Context): Boolean {
             val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager

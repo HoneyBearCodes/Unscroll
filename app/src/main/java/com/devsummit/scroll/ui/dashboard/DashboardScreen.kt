@@ -24,13 +24,20 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
     val context = androidx.compose.ui.platform.LocalContext.current
     var todayUsageMs by androidx.compose.runtime.mutableStateOf(0L)
     var weeklyData by androidx.compose.runtime.mutableStateOf<List<Float>>(emptyList())
+    var currentStreak by androidx.compose.runtime.mutableStateOf(0)
+    var dailyGoalMs by androidx.compose.runtime.mutableStateOf(60L * 60 * 1000)
 
     androidx.compose.runtime.LaunchedEffect(blacklistedApps) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
+                val prefs = context.getSharedPreferences("unscroll_prefs", android.content.Context.MODE_PRIVATE)
+                val goal = prefs.getLong("daily_goal_ms", 60L * 60 * 1000)
+                dailyGoalMs = goal
+
                 val engine = com.devsummit.scroll.core.usage.UsageEngine(context)
                 todayUsageMs = engine.getTodayUsageInMilliseconds(blacklistedApps)
                 weeklyData = engine.getWeeklyUsage(blacklistedApps)
+                currentStreak = engine.calculateCurrentStreak(blacklistedApps, goal)
             } catch (e: Exception) {
                 // Ignore UsageStatsManager occasional transaction too large errors in extreme cases
             }
@@ -49,6 +56,28 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("🔥", style = MaterialTheme.typography.displayMedium)
+                Text(
+                    text = "$currentStreak Day Streak!",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = "Daily Limit: ${dailyGoalMs / (60 * 1000)} mins",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
 
         Button(
             onClick = onTestOverlayClick,
@@ -71,7 +100,7 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                         CircularProgressIndicator()
                     }
                 } else {
-                    UsageBarChart(dataVals = weeklyData, modifier = Modifier.fillMaxSize())
+                    UsageBarChart(dataVals = weeklyData, dailyGoalMs = dailyGoalMs, modifier = Modifier.fillMaxSize())
                 }
             }
         }
@@ -95,7 +124,7 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
 }
 
 @Composable
-fun UsageBarChart(dataVals: List<Float>, modifier: Modifier = Modifier) {
+fun UsageBarChart(dataVals: List<Float>, dailyGoalMs: Long, modifier: Modifier = Modifier) {
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -120,6 +149,14 @@ fun UsageBarChart(dataVals: List<Float>, modifier: Modifier = Modifier) {
             }
 
             val dataSet = BarDataSet(entries, "Hours Spent")
+            
+            val goalHours = dailyGoalMs / (1000f * 60f * 60f)
+            val colors = dataVals.map { 
+                if (it > goalHours) android.graphics.Color.parseColor("#E53935") // Red
+                else android.graphics.Color.parseColor("#43A047") // Green
+            }
+            dataSet.colors = colors
+
             chart.data = BarData(dataSet)
             chart.invalidate()
         }
