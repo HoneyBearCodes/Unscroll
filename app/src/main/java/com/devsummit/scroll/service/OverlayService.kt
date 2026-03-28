@@ -48,7 +48,7 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
         FIFTEEN_MINS("15 Minutes", 15),
         THIRTY_MINS("30 Minutes", 30),
         ONE_HOUR("1 Hour", 60),
-        RUIN_MY_LIFE("Ruin My Life (No Snooze)", 24 * 60) // Basically today is ruined
+        RUIN_MY_LIFE("Ruin My Life (24hrs)", 24 * 60)
     }
 
     private lateinit var windowManager: WindowManager
@@ -139,6 +139,7 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                                             onClick = {
                                                 selectedSnooze = option
                                                 expanded = false
+                                                prefs.edit().putString("last_snooze_selection", option.name).apply()
                                             }
                                         ) {
                                             Text(option.title, color = Color.White)
