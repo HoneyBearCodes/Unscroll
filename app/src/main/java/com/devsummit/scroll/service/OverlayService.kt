@@ -131,8 +131,6 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                             modifier = Modifier.padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
                         )
 
-                        var expanded by remember { mutableStateOf(false) }
-                        
                         // Load previous snooze selection
                         val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
                         val lastSnoozeName = prefs.getString("last_snooze_selection", SnoozeOption.FIFTEEN_MINS.name)
@@ -152,22 +150,23 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                                 Button(onClick = { expanded = !expanded }) {
                                     Text("Snooze: ${selectedSnooze.title}")
                                 }
-                            if (expanded) {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(top = 8.dp)
-                                        .background(Color.DarkGray, shape = MaterialTheme.shapes.medium)
-                                        .padding(8.dp)
-                                ) {
-                                    SnoozeOption.values().forEach { option ->
-                                        androidx.compose.material3.TextButton(
-                                            onClick = {
-                                                selectedSnooze = option
-                                                expanded = false
-                                                prefs.edit().putString("last_snooze_selection", option.name).apply()
+                                if (expanded) {
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(top = 8.dp)
+                                            .background(Color.DarkGray, shape = MaterialTheme.shapes.medium)
+                                            .padding(8.dp)
+                                    ) {
+                                        SnoozeOption.values().forEach { option ->
+                                            androidx.compose.material3.TextButton(
+                                                onClick = {
+                                                    selectedSnooze = option
+                                                    expanded = false
+                                                    prefs.edit().putString("last_snooze_selection", option.name).apply()
+                                                }
+                                            ) {
+                                                Text(option.title, color = Color.White)
                                             }
-                                        ) {
-                                            Text(option.title, color = Color.White)
                                         }
                                     }
                                 }
