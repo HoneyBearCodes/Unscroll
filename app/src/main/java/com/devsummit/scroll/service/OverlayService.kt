@@ -120,22 +120,30 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                             ) 
                         }
 
-                        Box(modifier = Modifier.padding(bottom = 32.dp)) {
-                            Button(onClick = { expanded = true }) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(bottom = 32.dp)
+                        ) {
+                            Button(onClick = { expanded = !expanded }) {
                                 Text("Snooze: ${selectedSnooze.title}")
                             }
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                SnoozeOption.values().forEach { option ->
-                                    DropdownMenuItem(
-                                        text = { Text(option.title) },
-                                        onClick = {
-                                            selectedSnooze = option
-                                            expanded = false
+                            if (expanded) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(top = 8.dp)
+                                        .background(Color.DarkGray, shape = MaterialTheme.shapes.medium)
+                                        .padding(8.dp)
+                                ) {
+                                    SnoozeOption.values().forEach { option ->
+                                        androidx.compose.material3.TextButton(
+                                            onClick = {
+                                                selectedSnooze = option
+                                                expanded = false
+                                            }
+                                        ) {
+                                            Text(option.title, color = Color.White)
                                         }
-                                    )
+                                    }
                                 }
                             }
                         }
