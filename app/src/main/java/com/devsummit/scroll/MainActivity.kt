@@ -16,6 +16,9 @@ import android.content.Context
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityManager
 import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
@@ -46,25 +49,32 @@ class MainActivity : ComponentActivity() {
             .apply()
             
         // ... (permissions kept intact)
-        if (!Settings.canDrawOverlays(this)) {
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-            startActivity(intent)
-        }
-        
-        if (!UsageEngine.hasUsageStatsPermission(this)) {
-            val usageIntent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-            startActivity(usageIntent)
-        }
-
-        if (!isAccessibilityServiceEnabled()) {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-        }
+        // Permissions will be explicitly managed by PermissionsScreen now
 
         setContent {
             val scope = rememberCoroutineScope()
             val blacklistedApps by repository.allBlacklistedApps.collectAsState(initial = emptyList())
             var currentTab by remember { mutableStateOf("dashboard") }
+
+            val lifecycleOwner = LocalLifecycleOwner.current
+
+            var hasOverlay by remember { mutableStateOf(Settings.canDrawOverlays(this@MainActivity)) }
+            var hasUsage by remember { mutableStateOf(UsageEngine.hasUsageStatsPermission(this@MainActivity)) }
+            var hasAccessibility by remember { mutableStateOf(isAccessibilityServiceEnabled()) }
+
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        hasOverlay = Settings.canDrawOverlays(this@MainActivity)
+                        hasUsage = UsageEngine.hasUsageStatsPermission(this@MainActivity)
+                        hasAccessibility = isAccessibilityServiceEnabled()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            }
 
             // Sync blacklisted apps to SharedPreferences for the AccessibilityService
             LaunchedEffect(blacklistedApps) {
@@ -73,7 +83,16 @@ class MainActivity : ComponentActivity() {
             }
 
             UnscrollTheme {
-                Scaffold(
+                val allPermissionsGranted = hasOverlay && hasUsage && hasAccessibility
+
+                if (!allPermissionsGranted) {
+                    com.devsummit.scroll.ui.onboarding.PermissionsScreen(
+                        hasOverlay = hasOverlay,
+                        hasUsageStats = hasUsage,
+                        hasAccessibility = hasAccessibility
+                    )
+                } else {
+                    Scaffold(
                     bottomBar = {
                         NavigationBar {
                             NavigationBarItem(
@@ -114,6 +133,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
         }
     }
