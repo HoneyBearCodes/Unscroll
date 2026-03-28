@@ -22,14 +22,18 @@ import com.github.mikephil.charting.data.BarEntry
 @Composable
 fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var todayUsageMs by androidx.compose.runtime.mutableStateOf(0L)
-    var weeklyData by androidx.compose.runtime.mutableStateOf<List<Float>>(emptyList())
-    var currentStreak by androidx.compose.runtime.mutableStateOf(0)
-    var dailyGoalMs by androidx.compose.runtime.mutableStateOf(60L * 60 * 1000)
-
+    var todayUsageMs by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0L) }
+    var weeklyData by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<List<Float>>(emptyList()) }
+    var currentStreak by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+    var dailyGoalMs by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(60L * 60 * 1000L) }
+    var isLoading by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var errorMessage by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    
     androidx.compose.runtime.LaunchedEffect(blacklistedApps) {
+        isLoading = true
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
+                errorMessage = ""
                 val prefs = context.getSharedPreferences("unscroll_prefs", android.content.Context.MODE_PRIVATE)
                 val goal = prefs.getLong("daily_goal_ms", 60L * 60 * 1000)
                 dailyGoalMs = goal
@@ -39,10 +43,11 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                 weeklyData = engine.getWeeklyUsage(blacklistedApps)
                 currentStreak = engine.calculateCurrentStreak(blacklistedApps, goal)
             } catch (e: Exception) {
+                errorMessage = "${e.javaClass.simpleName}: ${e.message}"
                 android.util.Log.e("UnscrollDebug", "Dashboard Coroutine Crash", e)
-                // Ignore UsageStatsManager occasional transaction too large errors in extreme cases
             }
         }
+        isLoading = false
     }
 
     val achievements = remember(todayUsageMs) { RealityCheckUtility.getAchievements(if (todayUsageMs == 0L) 1L else todayUsageMs) }
@@ -96,9 +101,13 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Life Spent on Blocked Apps (Last 7 Days)", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                if (weeklyData.isEmpty()) {
+                if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
+                    }
+                } else if (errorMessage.isNotEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
                     UsageBarChart(dataVals = weeklyData, dailyGoalMs = dailyGoalMs, modifier = Modifier.fillMaxSize())
