@@ -35,39 +35,42 @@ class UsageEngine(private val context: Context) {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         val installTime = packageInfo.firstInstallTime
         
-        val weeklyData = mutableListOf<Float>()
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.DAY_OF_YEAR, -6)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+        
+        val usageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+        val weeklyData = MutableList(7) { 0f }
         
         for (i in 6 downTo 0) {
-            val calendar = Calendar.getInstance()
-            calendar.add(Calendar.DAY_OF_YEAR, -i)
-
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val startTime = calendar.timeInMillis
+            val dayCalendar = Calendar.getInstance()
+            dayCalendar.add(Calendar.DAY_OF_YEAR, -i)
+            dayCalendar.set(Calendar.HOUR_OF_DAY, 0)
+            dayCalendar.set(Calendar.MINUTE, 0)
+            dayCalendar.set(Calendar.SECOND, 0)
+            dayCalendar.set(Calendar.MILLISECOND, 0)
+            val dayStart = dayCalendar.timeInMillis
             
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            calendar.set(Calendar.SECOND, 59)
-            calendar.set(Calendar.MILLISECOND, 999)
-            val endTime = calendar.timeInMillis
+            dayCalendar.set(Calendar.HOUR_OF_DAY, 23)
+            dayCalendar.set(Calendar.MINUTE, 59)
+            dayCalendar.set(Calendar.SECOND, 59)
+            val dayEnd = dayCalendar.timeInMillis
             
-            if (endTime < installTime) {
-                weeklyData.add(0f)
-            } else {
-                val queryEnd = if (i == 0) System.currentTimeMillis() else endTime
-                val usageStats = usageStatsManager.queryAndAggregateUsageStats(startTime, queryEnd)
-                
-                var totalTimeMs = 0L
-                for ((packageName, stats) in usageStats) {
-                    if (blacklistedPackages.contains(packageName)) {
-                        totalTimeMs += stats.totalTimeInForeground
-                    }
+            if (dayEnd < installTime) continue
+            
+            var totalTimeMs = 0L
+            usageStats.forEach { stats ->
+                if (blacklistedPackages.contains(stats.packageName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
+                    totalTimeMs += stats.totalTimeInForeground
                 }
-                val hours = totalTimeMs / (1000f * 60f * 60f)
-                weeklyData.add(hours)
             }
+            weeklyData[6 - i] = totalTimeMs / (1000f * 60f * 60f)
         }
         return weeklyData
     }
@@ -76,43 +79,43 @@ class UsageEngine(private val context: Context) {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         val installTime = packageInfo.firstInstallTime
         
-        var streak = 0
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.DAY_OF_YEAR, -30)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
         
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+        
+        val usageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+        
+        var streak = 0
         for (i in 0..30) {
-            val calendar = Calendar.getInstance()
-            calendar.add(Calendar.DAY_OF_YEAR, -i)
+            val dayCalendar = Calendar.getInstance()
+            dayCalendar.add(Calendar.DAY_OF_YEAR, -i)
+            dayCalendar.set(Calendar.HOUR_OF_DAY, 0)
+            dayCalendar.set(Calendar.MINUTE, 0)
+            dayCalendar.set(Calendar.SECOND, 0)
+            dayCalendar.set(Calendar.MILLISECOND, 0)
+            val dayStart = dayCalendar.timeInMillis
             
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val startTime = calendar.timeInMillis
+            dayCalendar.set(Calendar.HOUR_OF_DAY, 23)
+            dayCalendar.set(Calendar.MINUTE, 59)
+            dayCalendar.set(Calendar.SECOND, 59)
+            val dayEnd = dayCalendar.timeInMillis
             
-            calendar.set(Calendar.HOUR_OF_DAY, 23)
-            calendar.set(Calendar.MINUTE, 59)
-            calendar.set(Calendar.SECOND, 59)
-            calendar.set(Calendar.MILLISECOND, 999)
-            val endTime = calendar.timeInMillis
-            
-            if (endTime < installTime) {
-                break 
-            }
-            
-            val queryEnd = if (i == 0) System.currentTimeMillis() else endTime
-            val usageStats = usageStatsManager.queryAndAggregateUsageStats(startTime, queryEnd)
+            if (dayEnd < installTime) break
             
             var totalTimeMs = 0L
-            for ((packageName, stats) in usageStats) {
-                if (blacklistedPackages.contains(packageName)) {
+            usageStats.forEach { stats ->
+                if (blacklistedPackages.contains(stats.packageName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
                     totalTimeMs += stats.totalTimeInForeground
                 }
             }
             
-            if (totalTimeMs <= dailyGoalMs) {
-                streak++
-            } else {
-                break
-            }
+            if (totalTimeMs <= dailyGoalMs) streak++ else break
         }
         return streak
     }
