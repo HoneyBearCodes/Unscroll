@@ -38,8 +38,10 @@ class UnscrollAccessibilityService : AccessibilityService(), SharedPreferences.O
 
     private fun updateCacheFromPrefs() {
         blacklistedCache.clear()
-        prefs.getStringSet("blacklisted_packages_cache", null)?.let {
-            blacklistedCache.addAll(it)
+        prefs.getString("blacklisted_packages_cache", "")?.let { str ->
+            if (str.isNotEmpty()) {
+                blacklistedCache.addAll(str.split(","))
+            }
         }
         globalSnoozeUntil = prefs.getLong("global_snooze_until", 0L)
     }

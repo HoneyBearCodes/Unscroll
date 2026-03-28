@@ -38,6 +38,13 @@ class MainActivity : ComponentActivity() {
             AppDatabase.getDatabase(this).dailyUsageDao(),
             AppDatabase.getDatabase(this).blacklistedAppDao()
         )
+        
+        // Reset snooze for testing purposes
+        getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putLong("global_snooze_until", 0L)
+            .apply()
+            
         // ... (permissions kept intact)
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
@@ -62,7 +69,7 @@ class MainActivity : ComponentActivity() {
             // Sync blacklisted apps to SharedPreferences for the AccessibilityService
             LaunchedEffect(blacklistedApps) {
                 val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putStringSet("blacklisted_packages_cache", blacklistedApps.toSet()).apply()
+                prefs.edit().putString("blacklisted_packages_cache", blacklistedApps.joinToString(",")).apply()
             }
 
             UnscrollTheme {
