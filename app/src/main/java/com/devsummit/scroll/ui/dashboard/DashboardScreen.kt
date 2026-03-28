@@ -102,6 +102,13 @@ fun UsageBarChart(dataVals: List<Float>, modifier: Modifier = Modifier) {
             BarChart(context).apply {
                 description.isEnabled = false
                 setDrawGridBackground(false)
+                
+                axisLeft.axisMinimum = 0f  // Force Y-axis to start at 0
+                axisRight.isEnabled = false // Hide the secondary Y-axis on the right
+                
+                xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+                xAxis.setDrawGridLines(false)
+                xAxis.granularity = 1f     // Force X-axis labels to strictly be integer days
             }
         },
         update = { chart ->
