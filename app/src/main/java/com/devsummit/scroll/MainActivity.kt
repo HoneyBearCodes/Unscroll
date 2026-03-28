@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
                     Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                         if (currentTab == "dashboard") {
                             DashboardScreen(
+                                blacklistedApps = blacklistedApps.toSet(),
                                 onTestOverlayClick = {
                                     startService(Intent(this@MainActivity, OverlayService::class.java))
                                 }

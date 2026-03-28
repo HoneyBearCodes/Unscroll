@@ -31,7 +31,46 @@ class UsageEngine(private val context: Context) {
         }
         return totalTime
     }
+    fun getWeeklyUsage(blacklistedPackages: Set<String>): List<Float> {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        val installTime = packageInfo.firstInstallTime
+        
+        val weeklyData = mutableListOf<Float>()
+        
+        for (i in 6 downTo 0) {
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_YEAR, -i)
 
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startTime = calendar.timeInMillis
+            
+            calendar.set(Calendar.HOUR_OF_DAY, 23)
+            calendar.set(Calendar.MINUTE, 59)
+            calendar.set(Calendar.SECOND, 59)
+            calendar.set(Calendar.MILLISECOND, 999)
+            val endTime = calendar.timeInMillis
+            
+            if (endTime < installTime) {
+                weeklyData.add(0f)
+            } else {
+                val queryEnd = if (i == 0) System.currentTimeMillis() else endTime
+                val usageStats = usageStatsManager.queryAndAggregateUsageStats(startTime, queryEnd)
+                
+                var totalTimeMs = 0L
+                for ((packageName, stats) in usageStats) {
+                    if (blacklistedPackages.contains(packageName)) {
+                        totalTimeMs += stats.totalTimeInForeground
+                    }
+                }
+                val hours = totalTimeMs / (1000f * 60f * 60f)
+                weeklyData.add(hours)
+            }
+        }
+        return weeklyData
+    }
     companion object {
         fun hasUsageStatsPermission(context: Context): Boolean {
             val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager

@@ -18,9 +18,24 @@ import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
 
 @Composable
-fun DashboardScreen(onTestOverlayClick: () -> Unit = {}) {
-    val mockTimeSpentMs = 7200000L // Mocking 2 hours
-    val achievements = remember { RealityCheckUtility.getAchievements(mockTimeSpentMs) }
+fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit = {}) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var todayUsageMs by androidx.compose.runtime.mutableStateOf(0L)
+    var weeklyData by androidx.compose.runtime.mutableStateOf<List<Float>>(emptyList())
+
+    androidx.compose.runtime.LaunchedEffect(blacklistedApps) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val engine = com.devsummit.scroll.core.usage.UsageEngine(context)
+                todayUsageMs = engine.getTodayUsageInMilliseconds(blacklistedApps)
+                weeklyData = engine.getWeeklyUsage(blacklistedApps)
+            } catch (e: Exception) {
+                // Ignore UsageStatsManager occasional transaction too large errors in extreme cases
+            }
+        }
+    }
+
+    val achievements = remember(todayUsageMs) { RealityCheckUtility.getAchievements(if (todayUsageMs == 0L) 1L else todayUsageMs) }
 
     Column(
         modifier = Modifier
@@ -47,9 +62,15 @@ fun DashboardScreen(onTestOverlayClick: () -> Unit = {}) {
                 .padding(bottom = 16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Life Spent (Last 7 Days)", style = MaterialTheme.typography.titleMedium)
+                Text("Life Spent on Blocked Apps (Last 7 Days)", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                UsageBarChart(modifier = Modifier.fillMaxSize())
+                if (weeklyData.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    UsageBarChart(dataVals = weeklyData, modifier = Modifier.fillMaxSize())
+                }
             }
         }
 
@@ -72,29 +93,26 @@ fun DashboardScreen(onTestOverlayClick: () -> Unit = {}) {
 }
 
 @Composable
-fun UsageBarChart(modifier: Modifier = Modifier) {
+fun UsageBarChart(dataVals: List<Float>, modifier: Modifier = Modifier) {
     AndroidView(
         modifier = modifier,
         factory = { context ->
             BarChart(context).apply {
                 description.isEnabled = false
                 setDrawGridBackground(false)
-                
-                val entries = ArrayList<BarEntry>()
-                // Mock data for 7 days
-                entries.add(BarEntry(1f, 2.5f))
-                entries.add(BarEntry(2f, 3.0f))
-                entries.add(BarEntry(3f, 1.5f))
-                entries.add(BarEntry(4f, 4.0f))
-                entries.add(BarEntry(5f, 2.0f))
-                entries.add(BarEntry(6f, 1.0f))
-                entries.add(BarEntry(7f, 2.5f))
-
-                val dataSet = BarDataSet(entries, "Hours Spent")
-
-                data = BarData(dataSet)
-                invalidate()
             }
+        },
+        update = { chart ->
+            if (dataVals.isEmpty()) return@AndroidView
+            
+            val entries = ArrayList<BarEntry>()
+            dataVals.forEachIndexed { index, hours ->
+                entries.add(BarEntry((index + 1).toFloat(), hours))
+            }
+
+            val dataSet = BarDataSet(entries, "Hours Spent")
+            chart.data = BarData(dataSet)
+            chart.invalidate()
         }
     )
 }
