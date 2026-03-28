@@ -138,14 +138,15 @@ fun PermissionCard(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
                     )
-                    IconButton(onClick = onInfoClick, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onInfoClick, modifier = Modifier.size(48.dp)) {
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = "Info",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
