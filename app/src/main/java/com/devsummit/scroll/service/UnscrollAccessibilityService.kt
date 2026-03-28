@@ -33,6 +33,14 @@ class UnscrollAccessibilityService : AccessibilityService() {
             if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
             val pkg = event.packageName?.toString() ?: return
+            val classNameStr = event.className?.toString() ?: ""
+            
+            // Ignore system-level popups, dialogs, and Compose DropdownMenus.
+            // These sub-windows shouldn't trigger an app-switched context reset.
+            if (classNameStr.contains("Popup") || classNameStr.contains("Dialog") || pkg == "android" || pkg == "com.android.systemui" || pkg.contains("inputmethod")) {
+                return
+            }
+            
             currentPackage = pkg
 
             pendingTrigger?.let { h.removeCallbacks(it) }
