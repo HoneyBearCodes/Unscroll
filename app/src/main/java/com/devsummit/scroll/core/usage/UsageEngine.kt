@@ -24,9 +24,11 @@ class UsageEngine(private val context: Context) {
         val usageStats = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
 
         var totalTime = 0L
-        for ((packageName, stats) in usageStats) {
-            if (blacklistedPackages.contains(packageName)) {
-                totalTime += stats.totalTimeInForeground
+        if (usageStats != null) {
+            for ((packageName, stats) in usageStats) {
+                if (packageName != null && blacklistedPackages.contains(packageName) && stats != null) {
+                    totalTime += stats.totalTimeInForeground
+                }
             }
         }
         return totalTime
@@ -48,6 +50,8 @@ class UsageEngine(private val context: Context) {
         val usageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
         val weeklyData = MutableList(7) { 0f }
         
+        if (usageStats.isNullOrEmpty()) return weeklyData
+
         for (i in 6 downTo 0) {
             val dayCalendar = Calendar.getInstance()
             dayCalendar.add(Calendar.DAY_OF_YEAR, -i)
@@ -66,7 +70,8 @@ class UsageEngine(private val context: Context) {
             
             var totalTimeMs = 0L
             usageStats.forEach { stats ->
-                if (blacklistedPackages.contains(stats.packageName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
+                val pkgName = stats?.packageName
+                if (pkgName != null && blacklistedPackages.contains(pkgName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
                     totalTimeMs += stats.totalTimeInForeground
                 }
             }
@@ -90,6 +95,7 @@ class UsageEngine(private val context: Context) {
         val endTime = System.currentTimeMillis()
         
         val usageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+        if (usageStats.isNullOrEmpty()) return 0
         
         var streak = 0
         for (i in 0..30) {
@@ -110,7 +116,8 @@ class UsageEngine(private val context: Context) {
             
             var totalTimeMs = 0L
             usageStats.forEach { stats ->
-                if (blacklistedPackages.contains(stats.packageName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
+                val pkgName = stats?.packageName
+                if (pkgName != null && blacklistedPackages.contains(pkgName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
                     totalTimeMs += stats.totalTimeInForeground
                 }
             }

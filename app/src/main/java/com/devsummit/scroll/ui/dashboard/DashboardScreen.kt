@@ -39,6 +39,7 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                 weeklyData = engine.getWeeklyUsage(blacklistedApps)
                 currentStreak = engine.calculateCurrentStreak(blacklistedApps, goal)
             } catch (e: Exception) {
+                android.util.Log.e("UnscrollDebug", "Dashboard Coroutine Crash", e)
                 // Ignore UsageStatsManager occasional transaction too large errors in extreme cases
             }
         }
