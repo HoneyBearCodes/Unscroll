@@ -9,46 +9,21 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
-class UnscrollAccessibilityService : AccessibilityService(), SharedPreferences.OnSharedPreferenceChangeListener {
+class UnscrollAccessibilityService : AccessibilityService() {
 
-    // Declare fields as null - initialized only after system binds us
-    private var handler: Handler? = null
     private var currentPackage: String? = null
     private var pendingTrigger: Runnable? = null
-
-    private lateinit var prefs: SharedPreferences
-    private val blacklistedCache = mutableSetOf<String>()
-    private var globalSnoozeUntil: Long = 0L
+    private var handler: Handler? = null
 
     override fun onServiceConnected() {
         try {
             super.onServiceConnected()
-            // Safe to initialize Handler here - system has fully bound us
             handler = Handler(Looper.getMainLooper())
-            prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-            prefs.registerOnSharedPreferenceChangeListener(this)
-            
-            updateCacheFromPrefs()
-            
             Log.d("Unscroll", "AccessibilityService CONNECTED successfully")
         } catch (t: Throwable) {
+            getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                .edit().putString("last_accessibility_error", "onServiceConnected: ${t.message}").apply()
             Log.e("Unscroll", "onServiceConnected failed", t)
-        }
-    }
-
-    private fun updateCacheFromPrefs() {
-        blacklistedCache.clear()
-        prefs.getString("blacklisted_packages_cache", "")?.let { str ->
-            if (str.isNotEmpty()) {
-                blacklistedCache.addAll(str.split(","))
-            }
-        }
-        globalSnoozeUntil = prefs.getLong("global_snooze_until", 0L)
-    }
-
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if (key == "blacklisted_packages_cache" || key == "global_snooze_until") {
-            updateCacheFromPrefs()
         }
     }
 
@@ -60,12 +35,17 @@ class UnscrollAccessibilityService : AccessibilityService(), SharedPreferences.O
             val pkg = event.packageName?.toString() ?: return
             currentPackage = pkg
 
-            // Remove any previously scheduled trigger
             pendingTrigger?.let { h.removeCallbacks(it) }
             pendingTrigger = null
 
-            if (!blacklistedCache.contains(pkg)) return
+            val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+            val blacklistedStr = prefs.getString("blacklisted_packages_cache", "") ?: ""
+            if (blacklistedStr.isEmpty()) return
+            
+            val isBlacklisted = blacklistedStr.split(",").contains(pkg)
+            if (!isBlacklisted) return
 
+            val globalSnoozeUntil = prefs.getLong("global_snooze_until", 0L)
             val now = System.currentTimeMillis()
 
             if (now > globalSnoozeUntil) {
@@ -84,21 +64,18 @@ class UnscrollAccessibilityService : AccessibilityService(), SharedPreferences.O
                 h.postDelayed(runnable, delay)
             }
         } catch (t: Throwable) {
+            getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                .edit().putString("last_accessibility_error", "onAccessibilityEvent: ${t.message}").apply()
             Log.e("Unscroll", "onAccessibilityEvent error", t)
         }
     }
 
-    override fun onInterrupt() {
-        Log.d("Unscroll", "AccessibilityService interrupted")
-    }
+    override fun onInterrupt() {}
 
     override fun onDestroy() {
         super.onDestroy()
         pendingTrigger?.let { handler?.removeCallbacks(it) }
         handler = null
-        if (::prefs.isInitialized) {
-            prefs.unregisterOnSharedPreferenceChangeListener(this)
-        }
         Log.d("Unscroll", "AccessibilityService destroyed")
     }
 }
