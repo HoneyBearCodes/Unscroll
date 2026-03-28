@@ -106,7 +106,17 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                         )
 
                         var expanded by remember { mutableStateOf(false) }
-                        var selectedSnooze by remember { mutableStateOf(SnoozeOption.FIFTEEN_MINS) }
+                        
+                        // Load previous snooze selection
+                        val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                        val lastSnoozeName = prefs.getString("last_snooze_selection", SnoozeOption.FIFTEEN_MINS.name)
+                        
+                        var selectedSnooze by remember { 
+                            mutableStateOf(
+                                try { SnoozeOption.valueOf(lastSnoozeName ?: SnoozeOption.FIFTEEN_MINS.name) } 
+                                catch (e: Exception) { SnoozeOption.FIFTEEN_MINS }
+                            ) 
+                        }
 
                         Box(modifier = Modifier.padding(bottom = 32.dp)) {
                             Button(onClick = { expanded = true }) {
@@ -130,9 +140,11 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                         
                         HoldToConfirmButton(
                             onConfirm = {
-                                val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
                                 val snoozeEnd = System.currentTimeMillis() + (selectedSnooze.minutes * 60 * 1000)
-                                prefs.edit().putLong("global_snooze_until", snoozeEnd).apply()
+                                prefs.edit()
+                                    .putLong("global_snooze_until", snoozeEnd)
+                                    .putString("last_snooze_selection", selectedSnooze.name)
+                                    .apply()
                                 removeOverlay()
                             }
                         )

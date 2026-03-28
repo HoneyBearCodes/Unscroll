@@ -43,7 +43,22 @@ class UnscrollAccessibilityService : AccessibilityService() {
             if (blacklistedStr.isEmpty()) return
             
             val isBlacklisted = blacklistedStr.split(",").contains(pkg)
-            if (!isBlacklisted) return
+            
+            // Protect our own popup windows (like dropdown menus) from killing our own overlay! 
+            // We only want to kill the overlay if they explicitly opened our MainActivity dashboard.
+            if (pkg == "com.devsummit.scroll") {
+                val classNameStr = event.className?.toString() ?: ""
+                if (!classNameStr.contains("MainActivity")) {
+                    return // Ignore our own popups/services!
+                }
+            }
+
+            if (!isBlacklisted) {
+                // If they go to home screen, recents, or another app, immediately hide the overlay
+                Log.d("Unscroll", "Moved to safe app: $pkg, stopping overlay")
+                stopService(Intent(this, OverlayService::class.java))
+                return
+            }
 
             val globalSnoozeUntil = prefs.getLong("global_snooze_until", 0L)
             val now = System.currentTimeMillis()
