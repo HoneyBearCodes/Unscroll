@@ -1,5 +1,7 @@
 package com.devsummit.scroll.service
 
+import android.util.Log
+
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -43,6 +45,10 @@ import com.devsummit.scroll.ui.theme.BlackOverlay
 
 class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
 
+    companion object {
+        const val EXTRA_PREVIEW_MODE = "extra_preview_mode"
+    }
+
     enum class SnoozeOption(val title: String, val minutes: Long) {
         FIVE_MINS("5 Minutes", 5),
         TEN_MINS("10 Minutes", 10),
@@ -54,6 +60,7 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
 
     private lateinit var windowManager: WindowManager
     private var composeView: ComposeView? = null
+    private var isPreviewMode = false
     
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
@@ -68,10 +75,14 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        isPreviewMode = intent?.getBooleanExtra(EXTRA_PREVIEW_MODE, false) ?: false
+        Log.d("Unscroll", "OverlayService.onStartCommand: preview=$isPreviewMode, composeView=${if (composeView == null) "null" else "exists"}")
         if (composeView == null) {
             showOverlay()
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        } else {
+            Log.d("Unscroll", "OverlayService: overlay already showing, ignoring start command")
         }
         return START_STICKY
     }
@@ -97,10 +108,17 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                         var expanded by remember { mutableStateOf(false) }
 
                         // State fields for gamification
+                        val preview = isPreviewMode
                         var isOverLimit by remember { mutableStateOf(false) }
                         var holdDurationMs by remember { mutableStateOf(5000L) }
                         
                         LaunchedEffect(Unit) {
+                            // In preview mode, skip the usage check entirely
+                            if (preview) {
+                                Log.d("Unscroll", "Overlay launched in PREVIEW mode, skipping limit check")
+                                return@LaunchedEffect
+                            }
+                            
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
                                 val blockedAppsStr = prefs.getString("blacklisted_packages_cache", "") ?: ""
@@ -109,6 +127,8 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                                 
                                 val engine = com.devsummit.scroll.core.usage.UsageEngine(this@OverlayService)
                                 val todayUsage = engine.getTodayUsageInMilliseconds(apps)
+                                
+                                Log.d("Unscroll", "Limit check: todayUsage=${todayUsage}ms (${todayUsage / 60000}min), goalMs=${goalMs}ms (${goalMs / 60000}min), apps=${apps.size}")
                                 
                                 if (todayUsage >= goalMs) {
                                     isOverLimit = true

@@ -58,8 +58,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     
-    // MPAndroidChart
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
 
     // Room
     val room_version = "2.7.0"

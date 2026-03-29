@@ -79,9 +79,13 @@ class MainActivity : ComponentActivity() {
             }
 
             // Sync blacklisted apps to SharedPreferences for the AccessibilityService
+            // Only write when we have actual data — don't overwrite with empty during initial load
             LaunchedEffect(blacklistedApps) {
-                val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-                prefs.edit().putString("blacklisted_packages_cache", blacklistedApps.joinToString(",")).apply()
+                if (blacklistedApps.isNotEmpty()) {
+                    val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putString("blacklisted_packages_cache", blacklistedApps.joinToString(",")).apply()
+                    android.util.Log.d("Unscroll", "Synced ${blacklistedApps.size} blocked apps to cache: ${blacklistedApps.joinToString(",")}")
+                }
             }
 
             UnscrollTheme {
@@ -123,7 +127,9 @@ class MainActivity : ComponentActivity() {
                             DashboardScreen(
                                 blacklistedApps = blacklistedApps.toSet(),
                                 onTestOverlayClick = {
-                                    startService(Intent(this@MainActivity, OverlayService::class.java))
+                                    startService(Intent(this@MainActivity, OverlayService::class.java).apply {
+                                        putExtra(OverlayService.EXTRA_PREVIEW_MODE, true)
+                                    })
                                 }
                             )
                         } else if (currentTab == "apps") {

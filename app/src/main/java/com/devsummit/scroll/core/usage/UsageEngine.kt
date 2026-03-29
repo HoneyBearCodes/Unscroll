@@ -37,20 +37,7 @@ class UsageEngine(private val context: Context) {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         val installTime = packageInfo.firstInstallTime
         
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, -6)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        
-        val startTime = calendar.timeInMillis
-        val endTime = System.currentTimeMillis()
-        
-        val usageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
         val weeklyData = MutableList(7) { 0f }
-        
-        if (usageStats.isNullOrEmpty()) return weeklyData
 
         for (i in 6 downTo 0) {
             val dayCalendar = Calendar.getInstance()
@@ -64,15 +51,21 @@ class UsageEngine(private val context: Context) {
             dayCalendar.set(Calendar.HOUR_OF_DAY, 23)
             dayCalendar.set(Calendar.MINUTE, 59)
             dayCalendar.set(Calendar.SECOND, 59)
+            dayCalendar.set(Calendar.MILLISECOND, 999)
             val dayEnd = dayCalendar.timeInMillis
             
             if (dayEnd < installTime) continue
             
+            // Use the same reliable aggregation API as getTodayUsageInMilliseconds
+            val endTime = if (i == 0) System.currentTimeMillis() else dayEnd
+            val aggregated = usageStatsManager.queryAndAggregateUsageStats(dayStart, endTime)
+            
             var totalTimeMs = 0L
-            usageStats.forEach { stats ->
-                val pkgName = stats?.packageName
-                if (pkgName != null && blacklistedPackages.contains(pkgName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
-                    totalTimeMs += stats.totalTimeInForeground
+            if (aggregated != null) {
+                for ((packageName, stats) in aggregated) {
+                    if (packageName != null && blacklistedPackages.contains(packageName) && stats != null) {
+                        totalTimeMs += stats.totalTimeInForeground
+                    }
                 }
             }
             weeklyData[6 - i] = totalTimeMs / (1000f * 60f * 60f)
@@ -83,19 +76,6 @@ class UsageEngine(private val context: Context) {
     fun calculateCurrentStreak(blacklistedPackages: Set<String>, dailyGoalMs: Long): Int {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         val installTime = packageInfo.firstInstallTime
-        
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, -30)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        
-        val startTime = calendar.timeInMillis
-        val endTime = System.currentTimeMillis()
-        
-        val usageStats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
-        if (usageStats.isNullOrEmpty()) return 0
         
         var streak = 0
         for (i in 0..30) {
@@ -110,15 +90,20 @@ class UsageEngine(private val context: Context) {
             dayCalendar.set(Calendar.HOUR_OF_DAY, 23)
             dayCalendar.set(Calendar.MINUTE, 59)
             dayCalendar.set(Calendar.SECOND, 59)
+            dayCalendar.set(Calendar.MILLISECOND, 999)
             val dayEnd = dayCalendar.timeInMillis
             
             if (dayEnd < installTime) break
             
+            val endTime = if (i == 0) System.currentTimeMillis() else dayEnd
+            val aggregated = usageStatsManager.queryAndAggregateUsageStats(dayStart, endTime)
+            
             var totalTimeMs = 0L
-            usageStats.forEach { stats ->
-                val pkgName = stats?.packageName
-                if (pkgName != null && blacklistedPackages.contains(pkgName) && stats.firstTimeStamp >= dayStart && stats.firstTimeStamp <= dayEnd) {
-                    totalTimeMs += stats.totalTimeInForeground
+            if (aggregated != null) {
+                for ((packageName, stats) in aggregated) {
+                    if (packageName != null && blacklistedPackages.contains(packageName) && stats != null) {
+                        totalTimeMs += stats.totalTimeInForeground
+                    }
                 }
             }
             

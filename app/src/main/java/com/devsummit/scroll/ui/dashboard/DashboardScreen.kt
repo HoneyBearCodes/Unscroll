@@ -1,22 +1,42 @@
 package com.devsummit.scroll.ui.dashboard
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
 import com.devsummit.scroll.core.utility.RealityCheckUtility
-import com.github.mikephil.charting.charts.BarChart
-import com.github.mikephil.charting.data.BarData
-import com.github.mikephil.charting.data.BarDataSet
-import com.github.mikephil.charting.data.BarEntry
+import java.util.Calendar
+
+// Chart colors
+private val BarColorGoodStart = Color(0xFF66BB6A)
+private val BarColorGoodEnd = Color(0xFF43A047)
+private val BarColorBadStart = Color(0xFFEF5350)
+private val BarColorBadEnd = Color(0xFFC62828)
+private val GoalLineColor = Color(0xFFFFB300)
+private val ChartLabelColor = Color(0xFF9E9E9E)
 
 @Composable
 fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit = {}) {
@@ -95,22 +115,52 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp)
-                .padding(bottom = 16.dp)
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Life Spent on Blocked Apps (Last 7 Days)", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Screen Time This Week",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Goal legend
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(modifier = Modifier.size(12.dp)) {
+                        drawLine(
+                            color = GoalLineColor,
+                            start = Offset(0f, size.height / 2),
+                            end = Offset(size.width, size.height / 2),
+                            strokeWidth = 2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "Daily limit",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
                 if (isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 } else if (errorMessage.isNotEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                         Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
-                    UsageBarChart(dataVals = weeklyData, dailyGoalMs = dailyGoalMs, modifier = Modifier.fillMaxSize())
+                    UsageBarChart(
+                        dataVals = weeklyData,
+                        dailyGoalMs = dailyGoalMs,
+                        modifier = Modifier.fillMaxWidth().height(200.dp)
+                    )
                 }
             }
         }
@@ -141,48 +191,169 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
 
 @Composable
 fun UsageBarChart(dataVals: List<Float>, dailyGoalMs: Long, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            BarChart(context).apply {
-                description.isEnabled = false
-                setDrawGridBackground(false)
-                
-                axisLeft.axisMinimum = 0f  // Force Y-axis to start at 0
-                axisRight.isEnabled = false // Hide the secondary Y-axis on the right
-                
-                xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
-                xAxis.setDrawGridLines(false)
-                xAxis.granularity = 1f     // Force X-axis labels to strictly be integer days
-            }
-        },
-        update = { chart ->
-            if (dataVals.isEmpty()) return@AndroidView
-            
-            val entries = ArrayList<BarEntry>()
-            dataVals.forEachIndexed { index, hours ->
-                entries.add(BarEntry((index + 1).toFloat(), hours))
-            }
-
-            val dataSet = BarDataSet(entries, "Hours Spent")
-            
-            val goalHours = dailyGoalMs / (1000f * 60f * 60f)
-            val colors = dataVals.map { 
-                if (it > goalHours) android.graphics.Color.parseColor("#E53935") // Red
-                else android.graphics.Color.parseColor("#43A047") // Green
-            }
-            dataSet.colors = colors
-
-            chart.data = BarData(dataSet)
-            chart.invalidate()
+    val textMeasurer = rememberTextMeasurer()
+    
+    // Animate bars entrance
+    val animationProgress = remember { Animatable(0f) }
+    LaunchedEffect(dataVals) {
+        animationProgress.snapTo(0f)
+        animationProgress.animateTo(1f, animationSpec = tween(durationMillis = 800))
+    }
+    
+    // Compute day labels for last 7 days
+    val dayLabels = remember {
+        val labels = mutableListOf<String>()
+        val cal = Calendar.getInstance()
+        for (i in 6 downTo 0) {
+            val dayCal = Calendar.getInstance()
+            dayCal.add(Calendar.DAY_OF_YEAR, -i)
+            labels.add(
+                when (dayCal.get(Calendar.DAY_OF_WEEK)) {
+                    Calendar.MONDAY -> "Mon"
+                    Calendar.TUESDAY -> "Tue"
+                    Calendar.WEDNESDAY -> "Wed"
+                    Calendar.THURSDAY -> "Thu"
+                    Calendar.FRIDAY -> "Fri"
+                    Calendar.SATURDAY -> "Sat"
+                    Calendar.SUNDAY -> "Sun"
+                    else -> ""
+                }
+            )
         }
-    )
+        labels
+    }
+    
+    val goalHours = dailyGoalMs / (1000f * 60f * 60f)
+    
+    // Determine max Y value for scaling, ensuring at least the goal line fits
+    val maxDataVal = if (dataVals.isEmpty()) goalHours else maxOf(dataVals.max(), goalHours)
+    // Add 20% headroom so bars/goal don't touch the top
+    val yMax = if (maxDataVal == 0f) 1f else maxDataVal * 1.2f
+
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    
+    Canvas(modifier = modifier) {
+        val chartLeft = 0f
+        val chartBottom = size.height - 28.dp.toPx() // space for labels
+        val chartTop = 20.dp.toPx() // space for value labels above bars
+        val chartHeight = chartBottom - chartTop
+        val barCount = if (dataVals.isEmpty()) 7 else dataVals.size
+        val totalBarArea = size.width - chartLeft
+        val barSlotWidth = totalBarArea / barCount
+        val barWidth = barSlotWidth * 0.55f
+        val cornerRadius = 6.dp.toPx()
+        
+        // Draw light horizontal grid lines
+        val gridLineCount = 3
+        for (i in 1..gridLineCount) {
+            val y = chartBottom - (chartHeight * i / (gridLineCount + 1))
+            drawLine(
+                color = onSurface.copy(alpha = 0.06f),
+                start = Offset(chartLeft, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        // Draw goal line (dashed)
+        val goalY = chartBottom - (goalHours / yMax) * chartHeight
+        if (goalY in chartTop..chartBottom) {
+            drawLine(
+                color = GoalLineColor,
+                start = Offset(chartLeft, goalY),
+                end = Offset(size.width, goalY),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx()))
+            )
+        }
+        
+        // Draw bars and labels
+        val values = if (dataVals.isEmpty()) List(7) { 0f } else dataVals
+        values.forEachIndexed { index, hours ->
+            val animatedHours = hours * animationProgress.value
+            val barHeight = (animatedHours / yMax) * chartHeight
+            val barX = chartLeft + barSlotWidth * index + (barSlotWidth - barWidth) / 2
+            val barTop = chartBottom - barHeight
+            
+            val isOverGoal = hours > goalHours
+            val barBrush = if (isOverGoal) {
+                Brush.verticalGradient(
+                    colors = listOf(BarColorBadStart, BarColorBadEnd),
+                    startY = barTop,
+                    endY = chartBottom
+                )
+            } else {
+                Brush.verticalGradient(
+                    colors = listOf(BarColorGoodStart, BarColorGoodEnd),
+                    startY = barTop,
+                    endY = chartBottom
+                )
+            }
+            
+            // Draw bar with rounded top corners
+            if (barHeight > 0.5f) {
+                drawRoundRect(
+                    brush = barBrush,
+                    topLeft = Offset(barX, barTop),
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                )
+            } else {
+                // Draw a tiny dot for zero-value days so they're still visible
+                drawCircle(
+                    color = onSurface.copy(alpha = 0.15f),
+                    radius = 2.dp.toPx(),
+                    center = Offset(barX + barWidth / 2, chartBottom - 2.dp.toPx())
+                )
+            }
+            
+            // Draw value label above bar (in minutes)
+            val minutes = (hours * 60).toInt()
+            val valueText = if (minutes == 0) "" else if (minutes < 60) "${minutes}m" else String.format("%.1fh", hours)
+            if (valueText.isNotEmpty() && animationProgress.value > 0.8f) {
+                val textLayoutResult = textMeasurer.measure(
+                    text = valueText,
+                    style = TextStyle(
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isOverGoal) BarColorBadEnd else BarColorGoodEnd
+                    )
+                )
+                drawText(
+                    textLayoutResult = textLayoutResult,
+                    topLeft = Offset(
+                        barX + barWidth / 2 - textLayoutResult.size.width / 2,
+                        barTop - textLayoutResult.size.height - 2.dp.toPx()
+                    )
+                )
+            }
+            
+            // Draw day label below
+            val dayLabel = dayLabels.getOrElse(index) { "" }
+            val dayTextLayout = textMeasurer.measure(
+                text = dayLabel,
+                style = TextStyle(
+                    fontSize = 11.sp,
+                    fontWeight = if (index == values.lastIndex) FontWeight.Bold else FontWeight.Normal,
+                    color = if (index == values.lastIndex) onSurface.copy(alpha = 0.9f) else ChartLabelColor
+                )
+            )
+            drawText(
+                textLayoutResult = dayTextLayout,
+                topLeft = Offset(
+                    barX + barWidth / 2 - dayTextLayout.size.width / 2,
+                    chartBottom + 6.dp.toPx()
+                )
+            )
+        }
+    }
 }
 
 @Composable
 fun AchievementCard(achievement: RealityCheckUtility.Achievement) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(
             modifier = Modifier
