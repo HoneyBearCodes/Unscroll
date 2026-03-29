@@ -24,20 +24,37 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("../unscroll-release.jks")
-            storePassword = "unscroll123"
-            keyAlias = "unscroll"
-            keyPassword = "unscroll123"
+            val keyFile = file("${project.rootDir}/../unscroll-release.jks")
+            if (keyFile.exists()) {
+                storeFile = keyFile
+                storePassword = "unscroll123"
+                keyAlias = "unscroll"
+                keyPassword = "unscroll123"
+            }
+        }
+
+        // Hardening: Fix ghost 'externalOverride' if it's broken or pointing to a non-existent file
+        all {
+            if (name == "externalOverride") {
+                val keyFile = file("${project.rootDir}/../unscroll-release.jks")
+                if (keyFile.exists()) {
+                    storeFile = keyFile
+                    storePassword = "unscroll123"
+                    keyAlias = "unscroll"
+                    keyPassword = "unscroll123"
+                }
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            // No signingConfig override here to avoid IDE conflicts
         }
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

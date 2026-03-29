@@ -32,32 +32,30 @@ class UnscrollAccessibilityService : AccessibilityService() {
             val pkg = event.packageName?.toString() ?: return
             val classNameStr = event.className?.toString() ?: ""
 
-            // Ignore system-level popups, dialogs, and Compose DropdownMenus
-            if (classNameStr.contains("Popup") || classNameStr.contains("Dialog") || pkg == "android" || pkg == "com.android.systemui" || pkg.contains("inputmethod")) {
+            // Ignore system-level popups, dialogs, and keyboards
+            if (pkg == "android" || pkg == "com.android.systemui" || pkg.contains("inputmethod") || 
+                classNameStr.contains("Popup") || classNameStr.contains("Dialog")) {
                 return
             }
             
             currentPackage = pkg
-
             pendingTrigger?.let { h.removeCallbacks(it) }
             pendingTrigger = null
 
             val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
             val blacklistedStr = prefs.getString("blacklisted_packages_cache", "") ?: ""
-            if (blacklistedStr.isEmpty()) {
-                Log.w("Unscroll", "Blacklist cache empty")
-                return
-            }
             
-            val blacklistedApps = blacklistedStr.split(",").filter { it.isNotBlank() }.toSet()
+            // Standardizing the split to avoid accidental spaces
+            val blacklistedApps = blacklistedStr.split(",").filter { it.isNotBlank() }.map { it.trim() }.toSet()
             val isBlacklisted = blacklistedApps.contains(pkg)
 
-            // Protect our own popup windows from killing our own overlay
+            // Protect our own app from being killed
             if (pkg == "com.devsummit.scroll") {
                 if (!classNameStr.contains("MainActivity")) return
             }
 
             if (!isBlacklisted) {
+                // Not a blocked app, ensure overlay is gone
                 stopService(Intent(this, OverlayService::class.java))
                 return
             }
@@ -66,30 +64,31 @@ class UnscrollAccessibilityService : AccessibilityService() {
             val now = System.currentTimeMillis()
 
             if (now > globalSnoozeUntil) {
-                Log.d("Unscroll", "Triggering overlay for $pkg")
+                Log.d("Unscroll", "Triggering overlay for blacklisted: $pkg")
                 try {
-                    startService(Intent(this, OverlayService::class.java))
+                    val intent = Intent(this, OverlayService::class.java).apply {
+                        setPackage(packageName)
+                    }
+                    startService(intent)
                 } catch (e: Exception) {
-                    Log.e("Unscroll", "Failed to start OverlayService", e)
+                    Log.e("Unscroll", "StartService failed for $pkg", e)
                 }
             } else {
                 val remainingSec = (globalSnoozeUntil - now) / 1000
-                Log.d("Unscroll", "Snooze active for ${remainingSec}s more")
-                val delay = (globalSnoozeUntil - now) + 500
+                Log.d("Unscroll", "Snooze active for $pkg ($remainingSec s left)")
+                val delay = (globalSnoozeUntil - now) + 200
                 val runnable = Runnable {
                     if (currentPackage == pkg) {
                         try {
                             startService(Intent(this@UnscrollAccessibilityService, OverlayService::class.java))
-                        } catch (e: Exception) {
-                            Log.e("Unscroll", "Failed to start OverlayService after snooze", e)
-                        }
+                        } catch (_: Exception) {}
                     }
                 }
                 pendingTrigger = runnable
                 h.postDelayed(runnable, delay)
             }
         } catch (t: Throwable) {
-            Log.e("Unscroll", "onAccessibilityEvent error", t)
+            Log.e("Unscroll", "onAccessibilityEvent crash", t)
         }
     }
 

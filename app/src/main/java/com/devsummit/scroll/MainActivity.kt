@@ -83,10 +83,8 @@ class MainActivity : ComponentActivity() {
 
             // Sync blacklisted apps to SharedPreferences for the AccessibilityService
             LaunchedEffect(blacklistedApps) {
-                if (blacklistedApps.isNotEmpty()) {
-                    val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-                    prefs.edit().putString("blacklisted_packages_cache", blacklistedApps.joinToString(",")).apply()
-                }
+                val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putString("blacklisted_packages_cache", blacklistedApps.joinToString(",")).apply()
             }
 
             UnscrollTheme {
