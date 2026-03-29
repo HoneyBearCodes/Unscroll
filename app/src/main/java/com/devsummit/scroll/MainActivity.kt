@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhonelinkLock
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
@@ -25,9 +26,11 @@ import com.devsummit.scroll.core.db.AppDatabase
 import com.devsummit.scroll.core.db.UsageRepository
 import com.devsummit.scroll.core.usage.UsageEngine
 import com.devsummit.scroll.service.OverlayService
+import com.devsummit.scroll.ui.about.AboutScreen
 import com.devsummit.scroll.ui.dashboard.DashboardScreen
 import com.devsummit.scroll.ui.settings.AppSelectorScreen
 import com.devsummit.scroll.ui.settings.SettingsScreen
+import com.devsummit.scroll.ui.splash.SplashScreen
 import com.devsummit.scroll.ui.theme.UnscrollTheme
 import com.devsummit.scroll.ui.theme.*
 
@@ -56,6 +59,7 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val blacklistedApps by repository.allBlacklistedApps.collectAsState(initial = emptyList())
             var currentTab by remember { mutableStateOf("dashboard") }
+            var showSplash by remember { mutableStateOf(true) }
 
             val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -86,90 +90,106 @@ class MainActivity : ComponentActivity() {
             }
 
             UnscrollTheme {
-                val allPermissionsGranted = hasOverlay && hasUsage && hasAccessibility
-
-                if (!allPermissionsGranted) {
-                    com.devsummit.scroll.ui.onboarding.PermissionsScreen(
-                        hasOverlay = hasOverlay,
-                        hasUsageStats = hasUsage,
-                        hasAccessibility = hasAccessibility
-                    )
+                if (showSplash) {
+                    SplashScreen(onSplashFinished = { showSplash = false })
                 } else {
-                    Scaffold(
-                        containerColor = DeepNavy,
-                        bottomBar = {
-                            NavigationBar(
-                                containerColor = DarkSlate,
-                                contentColor = OffWhite,
-                                tonalElevation = 0.dp
-                            ) {
-                                NavigationBarItem(
-                                    icon = { Icon(Icons.Outlined.Dashboard, contentDescription = "Dashboard") },
-                                    label = { Text("Dashboard") },
-                                    selected = currentTab == "dashboard",
-                                    onClick = { currentTab = "dashboard" },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Teal400,
-                                        selectedTextColor = Teal400,
-                                        indicatorColor = Teal400.copy(alpha = 0.12f),
-                                        unselectedIconColor = MutedGray,
-                                        unselectedTextColor = MutedGray
+                    val allPermissionsGranted = hasOverlay && hasUsage && hasAccessibility
+
+                    if (!allPermissionsGranted) {
+                        com.devsummit.scroll.ui.onboarding.PermissionsScreen(
+                            hasOverlay = hasOverlay,
+                            hasUsageStats = hasUsage,
+                            hasAccessibility = hasAccessibility
+                        )
+                    } else {
+                        Scaffold(
+                            containerColor = DeepNavy,
+                            bottomBar = {
+                                NavigationBar(
+                                    containerColor = DarkSlate,
+                                    contentColor = OffWhite,
+                                    tonalElevation = 0.dp
+                                ) {
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Outlined.Dashboard, contentDescription = "Dashboard") },
+                                        label = { Text("Dashboard") },
+                                        selected = currentTab == "dashboard",
+                                        onClick = { currentTab = "dashboard" },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Teal400,
+                                            selectedTextColor = Teal400,
+                                            indicatorColor = Teal400.copy(alpha = 0.12f),
+                                            unselectedIconColor = MutedGray,
+                                            unselectedTextColor = MutedGray
+                                        )
                                     )
-                                )
-                                NavigationBarItem(
-                                    icon = { Icon(Icons.Outlined.PhonelinkLock, contentDescription = "Apps") },
-                                    label = { Text("Blocked") },
-                                    selected = currentTab == "apps",
-                                    onClick = { currentTab = "apps" },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Teal400,
-                                        selectedTextColor = Teal400,
-                                        indicatorColor = Teal400.copy(alpha = 0.12f),
-                                        unselectedIconColor = MutedGray,
-                                        unselectedTextColor = MutedGray
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Outlined.PhonelinkLock, contentDescription = "Apps") },
+                                        label = { Text("Blocked") },
+                                        selected = currentTab == "apps",
+                                        onClick = { currentTab = "apps" },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Teal400,
+                                            selectedTextColor = Teal400,
+                                            indicatorColor = Teal400.copy(alpha = 0.12f),
+                                            unselectedIconColor = MutedGray,
+                                            unselectedTextColor = MutedGray
+                                        )
                                     )
-                                )
-                                NavigationBarItem(
-                                    icon = { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
-                                    label = { Text("Settings") },
-                                    selected = currentTab == "settings",
-                                    onClick = { currentTab = "settings" },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Teal400,
-                                        selectedTextColor = Teal400,
-                                        indicatorColor = Teal400.copy(alpha = 0.12f),
-                                        unselectedIconColor = MutedGray,
-                                        unselectedTextColor = MutedGray
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
+                                        label = { Text("Settings") },
+                                        selected = currentTab == "settings",
+                                        onClick = { currentTab = "settings" },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Teal400,
+                                            selectedTextColor = Teal400,
+                                            indicatorColor = Teal400.copy(alpha = 0.12f),
+                                            unselectedIconColor = MutedGray,
+                                            unselectedTextColor = MutedGray
+                                        )
                                     )
-                                )
+                                    NavigationBarItem(
+                                        icon = { Icon(Icons.Outlined.Info, contentDescription = "About") },
+                                        label = { Text("About") },
+                                        selected = currentTab == "about",
+                                        onClick = { currentTab = "about" },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Teal400,
+                                            selectedTextColor = Teal400,
+                                            indicatorColor = Teal400.copy(alpha = 0.12f),
+                                            unselectedIconColor = MutedGray,
+                                            unselectedTextColor = MutedGray
+                                        )
+                                    )
+                                }
                             }
-                        }
-                    ) { innerPadding ->
-                        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                            if (currentTab == "dashboard") {
-                                DashboardScreen(
-                                    blacklistedApps = blacklistedApps.toSet(),
-                                    onTestOverlayClick = {
-                                        startService(Intent(this@MainActivity, OverlayService::class.java).apply {
-                                            putExtra(OverlayService.EXTRA_PREVIEW_MODE, true)
-                                        })
-                                    }
-                                )
-                            } else if (currentTab == "apps") {
-                                AppSelectorScreen(
-                                    blacklistedPackages = blacklistedApps.toSet(),
-                                    onToggleApp = { appPackage, isBlacklisted ->
-                                        scope.launch {
-                                            if (isBlacklisted) {
-                                                repository.addBlacklistedApp(appPackage)
-                                            } else {
-                                                repository.removeBlacklistedApp(appPackage)
+                        ) { innerPadding ->
+                            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                                when (currentTab) {
+                                    "dashboard" -> DashboardScreen(
+                                        blacklistedApps = blacklistedApps.toSet(),
+                                        onTestOverlayClick = {
+                                            startService(Intent(this@MainActivity, OverlayService::class.java).apply {
+                                                putExtra(OverlayService.EXTRA_PREVIEW_MODE, true)
+                                            })
+                                        }
+                                    )
+                                    "apps" -> AppSelectorScreen(
+                                        blacklistedPackages = blacklistedApps.toSet(),
+                                        onToggleApp = { appPackage, isBlacklisted ->
+                                            scope.launch {
+                                                if (isBlacklisted) {
+                                                    repository.addBlacklistedApp(appPackage)
+                                                } else {
+                                                    repository.removeBlacklistedApp(appPackage)
+                                                }
                                             }
                                         }
-                                    }
-                                )
-                            } else {
-                                SettingsScreen()
+                                    )
+                                    "settings" -> SettingsScreen()
+                                    "about" -> AboutScreen()
+                                }
                             }
                         }
                     }
