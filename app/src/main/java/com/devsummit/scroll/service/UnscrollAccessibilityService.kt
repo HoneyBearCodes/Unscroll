@@ -3,7 +3,6 @@ package com.devsummit.scroll.service
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -19,31 +18,22 @@ class UnscrollAccessibilityService : AccessibilityService() {
         try {
             super.onServiceConnected()
             handler = Handler(Looper.getMainLooper())
-            Log.d("Unscroll", "AccessibilityService CONNECTED successfully")
+            Log.d("Unscroll", "AccessibilityService connected")
         } catch (t: Throwable) {
-            getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-                .edit().putString("last_accessibility_error", "onServiceConnected: ${t.message}").apply()
             Log.e("Unscroll", "onServiceConnected failed", t)
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         try {
-            val h = handler ?: run {
-                Log.w("Unscroll", "Handler is null, service may not be connected yet")
-                return
-            }
+            val h = handler ?: return
             if (event == null || event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
             val pkg = event.packageName?.toString() ?: return
             val classNameStr = event.className?.toString() ?: ""
-            
-            Log.d("Unscroll", "Event: pkg=$pkg, class=$classNameStr")
-            
-            // Ignore system-level popups, dialogs, and Compose DropdownMenus.
-            // These sub-windows shouldn't trigger an app-switched context reset.
+
+            // Ignore system-level popups, dialogs, and Compose DropdownMenus
             if (classNameStr.contains("Popup") || classNameStr.contains("Dialog") || pkg == "android" || pkg == "com.android.systemui" || pkg.contains("inputmethod")) {
-                Log.d("Unscroll", "Ignoring system/popup event: $pkg / $classNameStr")
                 return
             }
             
@@ -55,27 +45,19 @@ class UnscrollAccessibilityService : AccessibilityService() {
             val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
             val blacklistedStr = prefs.getString("blacklisted_packages_cache", "") ?: ""
             if (blacklistedStr.isEmpty()) {
-                Log.w("Unscroll", "Blacklist cache is EMPTY — no apps to block")
+                Log.w("Unscroll", "Blacklist cache empty")
                 return
             }
             
             val blacklistedApps = blacklistedStr.split(",").filter { it.isNotBlank() }.toSet()
             val isBlacklisted = blacklistedApps.contains(pkg)
-            
-            Log.d("Unscroll", "Package $pkg blacklisted=$isBlacklisted (blocklist has ${blacklistedApps.size} apps: $blacklistedStr)")
-            
-            // Protect our own popup windows (like dropdown menus) from killing our own overlay! 
-            // We only want to kill the overlay if they explicitly opened our MainActivity dashboard.
+
+            // Protect our own popup windows from killing our own overlay
             if (pkg == "com.devsummit.scroll") {
-                if (!classNameStr.contains("MainActivity")) {
-                    Log.d("Unscroll", "Ignoring our own non-MainActivity window: $classNameStr")
-                    return // Ignore our own popups/services!
-                }
+                if (!classNameStr.contains("MainActivity")) return
             }
 
             if (!isBlacklisted) {
-                // If they go to home screen, recents, or another app, immediately hide the overlay
-                Log.d("Unscroll", "Moved to safe app: $pkg, stopping overlay")
                 stopService(Intent(this, OverlayService::class.java))
                 return
             }
@@ -84,34 +66,29 @@ class UnscrollAccessibilityService : AccessibilityService() {
             val now = System.currentTimeMillis()
 
             if (now > globalSnoozeUntil) {
-                Log.d("Unscroll", "Launching overlay for $pkg (snooze expired or not set)")
+                Log.d("Unscroll", "Triggering overlay for $pkg")
                 try {
                     startService(Intent(this, OverlayService::class.java))
-                    Log.d("Unscroll", "startService called successfully for OverlayService")
                 } catch (e: Exception) {
-                    Log.e("Unscroll", "FAILED to start OverlayService", e)
+                    Log.e("Unscroll", "Failed to start OverlayService", e)
                 }
             } else {
+                val remainingSec = (globalSnoozeUntil - now) / 1000
+                Log.d("Unscroll", "Snooze active for ${remainingSec}s more")
                 val delay = (globalSnoozeUntil - now) + 500
-                Log.d("Unscroll", "Snooze active for ${delay}ms, scheduling delayed trigger")
                 val runnable = Runnable {
                     if (currentPackage == pkg) {
-                        Log.d("Unscroll", "Snooze done. Launching overlay for $pkg")
                         try {
                             startService(Intent(this@UnscrollAccessibilityService, OverlayService::class.java))
                         } catch (e: Exception) {
-                            Log.e("Unscroll", "FAILED to start OverlayService after snooze", e)
+                            Log.e("Unscroll", "Failed to start OverlayService after snooze", e)
                         }
-                    } else {
-                        Log.d("Unscroll", "Snooze done but user left $pkg (now on $currentPackage), skipping overlay")
                     }
                 }
                 pendingTrigger = runnable
                 h.postDelayed(runnable, delay)
             }
         } catch (t: Throwable) {
-            getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-                .edit().putString("last_accessibility_error", "onAccessibilityEvent: ${t.message}").apply()
             Log.e("Unscroll", "onAccessibilityEvent error", t)
         }
     }
@@ -122,6 +99,5 @@ class UnscrollAccessibilityService : AccessibilityService() {
         super.onDestroy()
         pendingTrigger?.let { handler?.removeCallbacks(it) }
         handler = null
-        Log.d("Unscroll", "AccessibilityService destroyed")
     }
 }

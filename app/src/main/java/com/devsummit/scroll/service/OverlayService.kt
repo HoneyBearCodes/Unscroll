@@ -1,7 +1,5 @@
 package com.devsummit.scroll.service
 
-import android.util.Log
-
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -12,10 +10,21 @@ import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PauseCircle
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
@@ -27,9 +36,6 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.Button
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -40,8 +46,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.devsummit.scroll.ui.components.HoldToConfirmButton
-import com.devsummit.scroll.ui.theme.UnscrollTheme
-import com.devsummit.scroll.ui.theme.BlackOverlay
+import com.devsummit.scroll.ui.theme.*
 
 class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
 
@@ -76,13 +81,10 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         isPreviewMode = intent?.getBooleanExtra(EXTRA_PREVIEW_MODE, false) ?: false
-        Log.d("Unscroll", "OverlayService.onStartCommand: preview=$isPreviewMode, composeView=${if (composeView == null) "null" else "exists"}")
         if (composeView == null) {
             showOverlay()
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
             lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-        } else {
-            Log.d("Unscroll", "OverlayService: overlay already showing, ignoring start command")
         }
         return START_STICKY
     }
@@ -100,24 +102,25 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(BlackOverlay)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        DarkOverlay,
+                                        Color(0xFF0A0E18)
+                                    )
+                                )
+                            )
                             .padding(32.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         var expanded by remember { mutableStateOf(false) }
-
-                        // State fields for gamification
                         val preview = isPreviewMode
                         var isOverLimit by remember { mutableStateOf(false) }
                         var holdDurationMs by remember { mutableStateOf(5000L) }
                         
                         LaunchedEffect(Unit) {
-                            // In preview mode, skip the usage check entirely
-                            if (preview) {
-                                Log.d("Unscroll", "Overlay launched in PREVIEW mode, skipping limit check")
-                                return@LaunchedEffect
-                            }
+                            if (preview) return@LaunchedEffect
                             
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
@@ -128,30 +131,53 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                                 val engine = com.devsummit.scroll.core.usage.UsageEngine(this@OverlayService)
                                 val todayUsage = engine.getTodayUsageInMilliseconds(apps)
                                 
-                                Log.d("Unscroll", "Limit check: todayUsage=${todayUsage}ms (${todayUsage / 60000}min), goalMs=${goalMs}ms (${goalMs / 60000}min), apps=${apps.size}")
-                                
                                 if (todayUsage >= goalMs) {
                                     isOverLimit = true
                                     holdDurationMs = 10000L
                                 }
                             }
                         }
+                        
+                        // Icon
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isOverLimit) 
+                                        Brush.radialGradient(listOf(LimitRed.copy(alpha = 0.3f), LimitRed.copy(alpha = 0.05f)))
+                                    else 
+                                        Brush.radialGradient(listOf(Teal400.copy(alpha = 0.3f), Teal400.copy(alpha = 0.05f)))
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isOverLimit) Icons.Outlined.WarningAmber else Icons.Outlined.PauseCircle,
+                                contentDescription = null,
+                                tint = if (isOverLimit) LimitRed else Teal400,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         Text(
-                            text = if (isOverLimit) "LIMIT EXCEEDED" else "Reality Check",
+                            text = if (isOverLimit) "Limit Exceeded" else "Reality Check",
                             style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                            color = if (isOverLimit) Color.Red else Color.White
+                            color = if (isOverLimit) LimitRed else OffWhite
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = if (isOverLimit) "You have exhausted your daily blocklist allowance. Unscroll is fully active." else "In the time you spent scrolling yesterday, you could have finished reading a book.",
+                            text = if (isOverLimit) 
+                                "You've used up your daily allowance for blocked apps. Unscroll is fully active." 
+                            else 
+                                "Take a moment to reconsider. Is this how you want to spend your time right now?",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.LightGray,
+                            color = MutedGray,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
                         )
 
-                        // Load previous snooze selection
                         val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
                         val lastSnoozeName = prefs.getString("last_snooze_selection", SnoozeOption.FIFTEEN_MINS.name)
                         
@@ -167,25 +193,37 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(bottom = 32.dp)
                             ) {
-                                Button(onClick = { expanded = !expanded }) {
+                                Button(
+                                    onClick = { expanded = !expanded },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ElevatedSlate,
+                                        contentColor = OffWhite
+                                    )
+                                ) {
                                     Text("Snooze: ${selectedSnooze.title}")
                                 }
                                 if (expanded) {
                                     Column(
                                         modifier = Modifier
                                             .padding(top = 8.dp)
-                                            .background(Color.DarkGray, shape = MaterialTheme.shapes.medium)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(CardSurface)
                                             .padding(8.dp)
                                     ) {
                                         SnoozeOption.values().forEach { option ->
-                                            androidx.compose.material3.TextButton(
+                                            TextButton(
                                                 onClick = {
                                                     selectedSnooze = option
                                                     expanded = false
                                                     prefs.edit().putString("last_snooze_selection", option.name).apply()
                                                 }
                                             ) {
-                                                Text(option.title, color = Color.White)
+                                                Text(
+                                                    option.title, 
+                                                    color = if (option == selectedSnooze) Teal400 else OffWhite,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
                                             }
                                         }
                                     }
@@ -194,8 +232,8 @@ class OverlayService : Service(), SavedStateRegistryOwner, ViewModelStoreOwner {
                         } else {
                             Text(
                                 text = "Emergency Snooze (2.5 mins)",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = LimitRed.copy(alpha = 0.7f),
                                 modifier = Modifier.padding(bottom = 32.dp)
                             )
                         }

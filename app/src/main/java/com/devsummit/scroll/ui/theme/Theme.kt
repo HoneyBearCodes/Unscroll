@@ -1,54 +1,67 @@
 package com.devsummit.scroll.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val UnscrollColorScheme = darkColorScheme(
+    primary = Teal400,
+    onPrimary = DeepNavy,
+    primaryContainer = DeepTeal,
+    onPrimaryContainer = Teal400,
+    secondary = Amber400,
+    onSecondary = DeepNavy,
+    secondaryContainer = Color(0xFF3D2E10),
+    onSecondaryContainer = Amber400,
+    tertiary = StreakOrange,
+    onTertiary = DeepNavy,
+    error = LimitRed,
+    onError = DeepNavy,
+    errorContainer = Color(0xFF3D1515),
+    onErrorContainer = LimitRed,
+    background = DeepNavy,
+    onBackground = OffWhite,
+    surface = DarkSlate,
+    onSurface = OffWhite,
+    surfaceVariant = ElevatedSlate,
+    onSurfaceVariant = MutedGray,
+    outline = SubtleGray,
+    outlineVariant = Color(0xFF2A3548)
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+private val UnscrollShapes = Shapes(
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )
 
 @Composable
 fun UnscrollTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = UnscrollColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val context = view.context
             if (context is Activity) {
                 val window = context.window
-                window.statusBarColor = colorScheme.primary.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+                window.statusBarColor = DeepNavy.toArgb()
+                window.navigationBarColor = DeepNavy.toArgb()
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = false
+                    isAppearanceLightNavigationBars = false
+                }
             }
         }
     }
@@ -56,6 +69,7 @@ fun UnscrollTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = UnscrollShapes,
         content = content
     )
 }

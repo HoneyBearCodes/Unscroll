@@ -1,7 +1,11 @@
 package com.devsummit.scroll.ui.components
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -21,8 +25,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.devsummit.scroll.ui.theme.Teal400
+import com.devsummit.scroll.ui.theme.Teal700
+import com.devsummit.scroll.ui.theme.ElevatedSlate
+import com.devsummit.scroll.ui.theme.OffWhite
+import com.devsummit.scroll.ui.theme.MutedGray
 import kotlinx.coroutines.delay
 
 @Composable
@@ -38,6 +50,18 @@ fun HoldToConfirmButton(
         targetValue = progressMs.toFloat() / durationMs.toFloat(),
         animationSpec = tween(durationMillis = 50, easing = LinearEasing),
         label = "progressRatio"
+    )
+
+    // Pulse glow when holding
+    val infiniteTransition = rememberInfiniteTransition(label = "glow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
     )
 
     LaunchedEffect(isPressed) {
@@ -56,12 +80,21 @@ fun HoldToConfirmButton(
         }
     }
 
+    val shape = RoundedCornerShape(28.dp)
+    val elevation = if (isPressed) 12.dp else 4.dp
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .shadow(
+                elevation = elevation,
+                shape = shape,
+                ambientColor = if (isPressed) Teal400.copy(alpha = glowAlpha) else Teal400.copy(alpha = 0.15f),
+                spotColor = if (isPressed) Teal400.copy(alpha = glowAlpha) else Teal400.copy(alpha = 0.15f)
+            )
+            .clip(shape)
+            .background(ElevatedSlate)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
@@ -73,21 +106,24 @@ fun HoldToConfirmButton(
             },
         contentAlignment = Alignment.CenterStart
     ) {
-        // Progress background
+        // Gradient progress fill
         Box(
             modifier = Modifier
                 .fillMaxWidth(fraction = progressRatio.coerceIn(0f, 1f))
                 .height(56.dp)
-                .background(MaterialTheme.colorScheme.primary)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(Teal700, Teal400)
+                    )
+                )
         )
 
         // Text
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val textColor = if (progressRatio > 0.5f) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
             Text(
                 text = if (isPressed) "Keep holding..." else "Hold ${durationMs / 1000}s to Proceed",
-                color = textColor,
-                style = MaterialTheme.typography.labelLarge
+                color = if (progressRatio > 0.4f) OffWhite else MutedGray,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
             )
         }
     }

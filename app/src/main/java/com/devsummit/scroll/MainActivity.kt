@@ -6,12 +6,14 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.PhonelinkLock
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import android.net.Uri
+import androidx.compose.ui.unit.dp
 import android.content.Context
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityManager
@@ -19,10 +21,6 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import com.devsummit.scroll.core.db.AppDatabase
 import com.devsummit.scroll.core.db.UsageRepository
 import com.devsummit.scroll.core.usage.UsageEngine
@@ -31,6 +29,7 @@ import com.devsummit.scroll.ui.dashboard.DashboardScreen
 import com.devsummit.scroll.ui.settings.AppSelectorScreen
 import com.devsummit.scroll.ui.settings.SettingsScreen
 import com.devsummit.scroll.ui.theme.UnscrollTheme
+import com.devsummit.scroll.ui.theme.*
 
 class MainActivity : ComponentActivity() {
 
@@ -43,15 +42,15 @@ class MainActivity : ComponentActivity() {
             AppDatabase.getDatabase(this).dailyUsageDao(),
             AppDatabase.getDatabase(this).blacklistedAppDao()
         )
-        
-        // Reset snooze for testing purposes
-        getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
-            .edit()
-            .putLong("global_snooze_until", 0L)
-            .apply()
-            
-        // ... (permissions kept intact)
-        // Permissions will be explicitly managed by PermissionsScreen now
+
+        // One-time snooze reset after update (clears stale snooze from old versions)
+        val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("snooze_migrated_v2", false)) {
+            prefs.edit()
+                .putLong("global_snooze_until", 0L)
+                .putBoolean("snooze_migrated_v2", true)
+                .apply()
+        }
 
         setContent {
             val scope = rememberCoroutineScope()
@@ -79,12 +78,10 @@ class MainActivity : ComponentActivity() {
             }
 
             // Sync blacklisted apps to SharedPreferences for the AccessibilityService
-            // Only write when we have actual data — don't overwrite with empty during initial load
             LaunchedEffect(blacklistedApps) {
                 if (blacklistedApps.isNotEmpty()) {
                     val prefs = getSharedPreferences("unscroll_prefs", Context.MODE_PRIVATE)
                     prefs.edit().putString("blacklisted_packages_cache", blacklistedApps.joinToString(",")).apply()
-                    android.util.Log.d("Unscroll", "Synced ${blacklistedApps.size} blocked apps to cache: ${blacklistedApps.joinToString(",")}")
                 }
             }
 
@@ -99,59 +96,84 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     Scaffold(
-                    bottomBar = {
-                        NavigationBar {
-                            NavigationBarItem(
-                                icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
-                                label = { Text("Dashboard") },
-                                selected = currentTab == "dashboard",
-                                onClick = { currentTab = "dashboard" }
-                            )
-                            NavigationBarItem(
-                                icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Apps") },
-                                label = { Text("Blocked Apps") },
-                                selected = currentTab == "apps",
-                                onClick = { currentTab = "apps" }
-                            )
-                            NavigationBarItem(
-                                icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                                label = { Text("Settings") },
-                                selected = currentTab == "settings",
-                                onClick = { currentTab = "settings" }
-                            )
+                        containerColor = DeepNavy,
+                        bottomBar = {
+                            NavigationBar(
+                                containerColor = DarkSlate,
+                                contentColor = OffWhite,
+                                tonalElevation = 0.dp
+                            ) {
+                                NavigationBarItem(
+                                    icon = { Icon(Icons.Outlined.Dashboard, contentDescription = "Dashboard") },
+                                    label = { Text("Dashboard") },
+                                    selected = currentTab == "dashboard",
+                                    onClick = { currentTab = "dashboard" },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Teal400,
+                                        selectedTextColor = Teal400,
+                                        indicatorColor = Teal400.copy(alpha = 0.12f),
+                                        unselectedIconColor = MutedGray,
+                                        unselectedTextColor = MutedGray
+                                    )
+                                )
+                                NavigationBarItem(
+                                    icon = { Icon(Icons.Outlined.PhonelinkLock, contentDescription = "Apps") },
+                                    label = { Text("Blocked") },
+                                    selected = currentTab == "apps",
+                                    onClick = { currentTab = "apps" },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Teal400,
+                                        selectedTextColor = Teal400,
+                                        indicatorColor = Teal400.copy(alpha = 0.12f),
+                                        unselectedIconColor = MutedGray,
+                                        unselectedTextColor = MutedGray
+                                    )
+                                )
+                                NavigationBarItem(
+                                    icon = { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
+                                    label = { Text("Settings") },
+                                    selected = currentTab == "settings",
+                                    onClick = { currentTab = "settings" },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = Teal400,
+                                        selectedTextColor = Teal400,
+                                        indicatorColor = Teal400.copy(alpha = 0.12f),
+                                        unselectedIconColor = MutedGray,
+                                        unselectedTextColor = MutedGray
+                                    )
+                                )
+                            }
                         }
-                    }
-                ) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                        if (currentTab == "dashboard") {
-                            DashboardScreen(
-                                blacklistedApps = blacklistedApps.toSet(),
-                                onTestOverlayClick = {
-                                    startService(Intent(this@MainActivity, OverlayService::class.java).apply {
-                                        putExtra(OverlayService.EXTRA_PREVIEW_MODE, true)
-                                    })
-                                }
-                            )
-                        } else if (currentTab == "apps") {
-                            AppSelectorScreen(
-                                blacklistedPackages = blacklistedApps.toSet(),
-                                onToggleApp = { appPackage, isBlacklisted ->
-                                    scope.launch {
-                                        if (isBlacklisted) {
-                                            repository.addBlacklistedApp(appPackage)
-                                        } else {
-                                            repository.removeBlacklistedApp(appPackage)
+                    ) { innerPadding ->
+                        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                            if (currentTab == "dashboard") {
+                                DashboardScreen(
+                                    blacklistedApps = blacklistedApps.toSet(),
+                                    onTestOverlayClick = {
+                                        startService(Intent(this@MainActivity, OverlayService::class.java).apply {
+                                            putExtra(OverlayService.EXTRA_PREVIEW_MODE, true)
+                                        })
+                                    }
+                                )
+                            } else if (currentTab == "apps") {
+                                AppSelectorScreen(
+                                    blacklistedPackages = blacklistedApps.toSet(),
+                                    onToggleApp = { appPackage, isBlacklisted ->
+                                        scope.launch {
+                                            if (isBlacklisted) {
+                                                repository.addBlacklistedApp(appPackage)
+                                            } else {
+                                                repository.removeBlacklistedApp(appPackage)
+                                            }
                                         }
                                     }
-                                }
-                            )
-                        } else {
-                            SettingsScreen()
+                                )
+                            } else {
+                                SettingsScreen()
+                            }
                         }
                     }
-                        
                 }
-            }
             }
         }
     }

@@ -1,11 +1,21 @@
 package com.devsummit.scroll.core.utility
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoStories
+import androidx.compose.material.icons.outlined.DirectionsWalk
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.ui.graphics.vector.ImageVector
+
 object RealityCheckUtility {
 
     data class Achievement(
         val type: String,
         val amount: Double,
-        val description: String
+        val description: String,
+        val icon: ImageVector
     )
 
     fun getAchievements(milliseconds: Long): List<Achievement> {
@@ -13,12 +23,12 @@ object RealityCheckUtility {
         val hours = minutes / 60.0
 
         return listOf(
-            Achievement("Reading", (minutes / 30.0), "Book Chapters"),
-            Achievement("Exercise", (hours * 500.0), "Calories Burned"),
-            Achievement("Language", (minutes / 15.0), "Languages Lessons"),
-            Achievement("Walking", (minutes / 12.0), "Kilometers Walked"),
-            Achievement("Learning", (minutes / 45.0), "Podcast Episodes"),
-            Achievement("Entertainment", (hours / 2.0), "Movies Watched")
+            Achievement("Reading", (minutes / 30.0), "Book Chapters", Icons.Outlined.AutoStories),
+            Achievement("Exercise", (hours * 500.0), "Calories Burned", Icons.Outlined.FitnessCenter),
+            Achievement("Language", (minutes / 15.0), "Language Lessons", Icons.Outlined.Translate),
+            Achievement("Walking", (minutes / 12.0), "Km Walked", Icons.Outlined.DirectionsWalk),
+            Achievement("Learning", (minutes / 45.0), "Podcast Episodes", Icons.Outlined.Headphones),
+            Achievement("Entertainment", (hours / 2.0), "Movies Watched", Icons.Outlined.Movie)
         )
     }
 

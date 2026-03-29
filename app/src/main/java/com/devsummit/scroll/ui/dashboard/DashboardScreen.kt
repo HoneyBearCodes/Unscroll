@@ -3,10 +3,15 @@ package com.devsummit.scroll.ui.dashboard
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Whatshot
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,12 +20,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -28,15 +35,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devsummit.scroll.core.utility.RealityCheckUtility
+import com.devsummit.scroll.ui.theme.*
 import java.util.Calendar
-
-// Chart colors
-private val BarColorGoodStart = Color(0xFF66BB6A)
-private val BarColorGoodEnd = Color(0xFF43A047)
-private val BarColorBadStart = Color(0xFFEF5350)
-private val BarColorBadEnd = Color(0xFFC62828)
-private val GoalLineColor = Color(0xFFFFB300)
-private val ChartLabelColor = Color(0xFF9E9E9E)
 
 @Composable
 fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit = {}) {
@@ -63,7 +63,6 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                 currentStreak = engine.calculateCurrentStreak(blacklistedApps, goal)
             } catch (e: Exception) {
                 errorMessage = "${e.javaClass.simpleName}: ${e.message}"
-                android.util.Log.e("UnscrollDebug", "Dashboard Coroutine Crash", e)
             }
         }
         isLoading = false
@@ -74,55 +73,122 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
+        // ── Header ──
         Text(
-            text = "Unscroll Dashboard",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
+            text = "Dashboard",
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(bottom = 20.dp, top = 8.dp)
         )
 
+        // ── Streak Card ──
         Card(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(DeepTeal, CardSurface)
+                        )
+                    )
+                    .padding(24.dp)
             ) {
-                Text("🔥", style = MaterialTheme.typography.displayMedium)
-                Text(
-                    text = "$currentStreak Day Streak!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = "Daily Limit: ${dailyGoalMs / (60 * 1000)} mins",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Streak icon
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(StreakOrange, StreakOrangeDeep)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Whatshot,
+                            contentDescription = "Streak",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Column {
+                        Text(
+                            text = "$currentStreak Day Streak",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = OffWhite
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Teal400)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Daily Limit: ${dailyGoalMs / (60 * 1000)} mins",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MutedGray
+                            )
+                        }
+                    }
+                }
             }
         }
 
-        Button(
+        // ── Preview Overlay Button ──
+        OutlinedButton(
             onClick = onTestOverlayClick,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Teal400),
+            border = ButtonDefaults.outlinedButtonBorder.copy(
+                brush = Brush.horizontalGradient(listOf(Teal400.copy(alpha = 0.5f), Teal400.copy(alpha = 0.2f)))
+            )
         ) {
-            Text("Preview Friction Overlay")
+            Icon(
+                imageVector = Icons.Outlined.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Preview Friction Overlay",
+                style = MaterialTheme.typography.labelLarge
+            )
         }
 
+        // ── Chart Card ──
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            shape = RoundedCornerShape(16.dp)
+                .padding(bottom = 20.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = CardSurface)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(20.dp)) {
                 Text(
                     "Screen Time This Week",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = OffWhite
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 
@@ -130,7 +196,7 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Canvas(modifier = Modifier.size(12.dp)) {
                         drawLine(
-                            color = GoalLineColor,
+                            color = Amber400,
                             start = Offset(0f, size.height / 2),
                             end = Offset(size.width, size.height / 2),
                             strokeWidth = 2.dp.toPx(),
@@ -141,19 +207,19 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                     Text(
                         "Daily limit",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MutedGray
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = Teal400)
                     }
                 } else if (errorMessage.isNotEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(errorMessage, color = LimitRed, style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
                     UsageBarChart(
@@ -165,16 +231,18 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
             }
         }
 
+        // ── What You Missed Section ──
         Text(
             text = "What You Missed Today",
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
+            color = OffWhite,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
         achievements.chunked(2).forEach { row ->
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 row.forEach { achievement ->
                     Box(modifier = Modifier.weight(1f)) {
@@ -186,6 +254,8 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
                 }
             }
         }
+        
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -193,17 +263,14 @@ fun DashboardScreen(blacklistedApps: Set<String>, onTestOverlayClick: () -> Unit
 fun UsageBarChart(dataVals: List<Float>, dailyGoalMs: Long, modifier: Modifier = Modifier) {
     val textMeasurer = rememberTextMeasurer()
     
-    // Animate bars entrance
     val animationProgress = remember { Animatable(0f) }
     LaunchedEffect(dataVals) {
         animationProgress.snapTo(0f)
         animationProgress.animateTo(1f, animationSpec = tween(durationMillis = 800))
     }
     
-    // Compute day labels for last 7 days
     val dayLabels = remember {
         val labels = mutableListOf<String>()
-        val cal = Calendar.getInstance()
         for (i in 6 downTo 0) {
             val dayCal = Calendar.getInstance()
             dayCal.add(Calendar.DAY_OF_YEAR, -i)
@@ -224,73 +291,61 @@ fun UsageBarChart(dataVals: List<Float>, dailyGoalMs: Long, modifier: Modifier =
     }
     
     val goalHours = dailyGoalMs / (1000f * 60f * 60f)
-    
-    // Determine max Y value for scaling, ensuring at least the goal line fits
     val maxDataVal = if (dataVals.isEmpty()) goalHours else maxOf(dataVals.max(), goalHours)
-    // Add 20% headroom so bars/goal don't touch the top
     val yMax = if (maxDataVal == 0f) 1f else maxDataVal * 1.2f
 
-    val onSurface = MaterialTheme.colorScheme.onSurface
-    
     Canvas(modifier = modifier) {
-        val chartLeft = 0f
-        val chartBottom = size.height - 28.dp.toPx() // space for labels
-        val chartTop = 20.dp.toPx() // space for value labels above bars
+        val chartBottom = size.height - 28.dp.toPx()
+        val chartTop = 20.dp.toPx()
         val chartHeight = chartBottom - chartTop
         val barCount = if (dataVals.isEmpty()) 7 else dataVals.size
-        val totalBarArea = size.width - chartLeft
-        val barSlotWidth = totalBarArea / barCount
-        val barWidth = barSlotWidth * 0.55f
+        val barSlotWidth = size.width / barCount
+        val barWidth = barSlotWidth * 0.5f
         val cornerRadius = 6.dp.toPx()
         
-        // Draw light horizontal grid lines
-        val gridLineCount = 3
-        for (i in 1..gridLineCount) {
-            val y = chartBottom - (chartHeight * i / (gridLineCount + 1))
+        // Subtle grid lines
+        for (i in 1..3) {
+            val y = chartBottom - (chartHeight * i / 4)
             drawLine(
-                color = onSurface.copy(alpha = 0.06f),
-                start = Offset(chartLeft, y),
+                color = Color.White.copy(alpha = 0.04f),
+                start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 1.dp.toPx()
             )
         }
         
-        // Draw goal line (dashed)
+        // Goal line
         val goalY = chartBottom - (goalHours / yMax) * chartHeight
         if (goalY in chartTop..chartBottom) {
             drawLine(
-                color = GoalLineColor,
-                start = Offset(chartLeft, goalY),
+                color = Amber400,
+                start = Offset(0f, goalY),
                 end = Offset(size.width, goalY),
                 strokeWidth = 1.5.dp.toPx(),
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx()))
             )
         }
         
-        // Draw bars and labels
         val values = if (dataVals.isEmpty()) List(7) { 0f } else dataVals
         values.forEachIndexed { index, hours ->
             val animatedHours = hours * animationProgress.value
             val barHeight = (animatedHours / yMax) * chartHeight
-            val barX = chartLeft + barSlotWidth * index + (barSlotWidth - barWidth) / 2
+            val barX = barSlotWidth * index + (barSlotWidth - barWidth) / 2
             val barTop = chartBottom - barHeight
             
             val isOverGoal = hours > goalHours
             val barBrush = if (isOverGoal) {
                 Brush.verticalGradient(
-                    colors = listOf(BarColorBadStart, BarColorBadEnd),
-                    startY = barTop,
-                    endY = chartBottom
+                    colors = listOf(GradientRedStart, GradientRedEnd),
+                    startY = barTop, endY = chartBottom
                 )
             } else {
                 Brush.verticalGradient(
-                    colors = listOf(BarColorGoodStart, BarColorGoodEnd),
-                    startY = barTop,
-                    endY = chartBottom
+                    colors = listOf(GradientGreenStart, GradientGreenEnd),
+                    startY = barTop, endY = chartBottom
                 )
             }
             
-            // Draw bar with rounded top corners
             if (barHeight > 0.5f) {
                 drawRoundRect(
                     brush = barBrush,
@@ -299,49 +354,49 @@ fun UsageBarChart(dataVals: List<Float>, dailyGoalMs: Long, modifier: Modifier =
                     cornerRadius = CornerRadius(cornerRadius, cornerRadius)
                 )
             } else {
-                // Draw a tiny dot for zero-value days so they're still visible
                 drawCircle(
-                    color = onSurface.copy(alpha = 0.15f),
-                    radius = 2.dp.toPx(),
+                    color = MutedGray.copy(alpha = 0.3f),
+                    radius = 2.5.dp.toPx(),
                     center = Offset(barX + barWidth / 2, chartBottom - 2.dp.toPx())
                 )
             }
             
-            // Draw value label above bar (in minutes)
+            // Value label
             val minutes = (hours * 60).toInt()
             val valueText = if (minutes == 0) "" else if (minutes < 60) "${minutes}m" else String.format("%.1fh", hours)
             if (valueText.isNotEmpty() && animationProgress.value > 0.8f) {
-                val textLayoutResult = textMeasurer.measure(
+                val textLayout = textMeasurer.measure(
                     text = valueText,
                     style = TextStyle(
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isOverGoal) BarColorBadEnd else BarColorGoodEnd
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isOverGoal) LimitRed else SafeGreen
                     )
                 )
                 drawText(
-                    textLayoutResult = textLayoutResult,
+                    textLayoutResult = textLayout,
                     topLeft = Offset(
-                        barX + barWidth / 2 - textLayoutResult.size.width / 2,
-                        barTop - textLayoutResult.size.height - 2.dp.toPx()
+                        barX + barWidth / 2 - textLayout.size.width / 2,
+                        barTop - textLayout.size.height - 2.dp.toPx()
                     )
                 )
             }
             
-            // Draw day label below
+            // Day label
             val dayLabel = dayLabels.getOrElse(index) { "" }
-            val dayTextLayout = textMeasurer.measure(
+            val isToday = index == values.lastIndex
+            val dayLayout = textMeasurer.measure(
                 text = dayLabel,
                 style = TextStyle(
                     fontSize = 11.sp,
-                    fontWeight = if (index == values.lastIndex) FontWeight.Bold else FontWeight.Normal,
-                    color = if (index == values.lastIndex) onSurface.copy(alpha = 0.9f) else ChartLabelColor
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isToday) OffWhite else MutedGray
                 )
             )
             drawText(
-                textLayoutResult = dayTextLayout,
+                textLayoutResult = dayLayout,
                 topLeft = Offset(
-                    barX + barWidth / 2 - dayTextLayout.size.width / 2,
+                    barX + barWidth / 2 - dayLayout.size.width / 2,
                     chartBottom + 6.dp.toPx()
                 )
             )
@@ -352,8 +407,8 @@ fun UsageBarChart(dataVals: List<Float>, dailyGoalMs: Long, modifier: Modifier =
 @Composable
 fun AchievementCard(achievement: RealityCheckUtility.Achievement) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape = RoundedCornerShape(12.dp)
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -361,15 +416,31 @@ fun AchievementCard(achievement: RealityCheckUtility.Achievement) {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Icon with tinted background
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Teal400.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = achievement.icon,
+                    contentDescription = achievement.type,
+                    tint = Teal400,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = String.format("%.1f", achievement.amount),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                style = MaterialTheme.typography.headlineMedium,
+                color = OffWhite
             )
             Text(
                 text = achievement.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedGray
             )
         }
     }

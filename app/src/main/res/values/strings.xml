@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Unscroll</string>
-    <string name="accessibility_description">Unscroll requires Accessibility access to detect when you open doomed apps in order to show you a Reality Check.</string>
+    <string name="accessibility_label">Unscroll Screen Time Guard</string>
+    <string name="accessibility_description">Unscroll uses this service to detect when you switch to apps you have chosen to block, so it can show you a mindfulness prompt. It does not read, collect, or transmit any personal data.</string>
 </resources>
